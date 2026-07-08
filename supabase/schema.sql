@@ -101,3 +101,25 @@ CREATE POLICY "Allow all for anon" ON varian FOR ALL USING (true) WITH CHECK (tr
 CREATE POLICY "Allow all for anon" ON pesanan FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all for anon" ON detail_pesanan FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all for anon" ON histori_stok FOR ALL USING (true) WITH CHECK (true);
+
+-- ============================================================
+2. Storage Bucket 'resi' Setup and Policies
+-- ============================================================
+-- Membuat bucket 'resi' jika belum ada
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES ('resi', 'resi', true, null, '{"application/pdf"}')
+ON CONFLICT (id) DO NOTHING;
+
+-- Kebijakan RLS untuk upload dan download resi (anonim)
+CREATE POLICY "Allow public select on resi bucket" ON storage.objects
+  FOR SELECT USING (bucket_id = 'resi');
+
+CREATE POLICY "Allow anon insert on resi bucket" ON storage.objects
+  FOR INSERT WITH CHECK (bucket_id = 'resi');
+
+CREATE POLICY "Allow anon update on resi bucket" ON storage.objects
+  FOR UPDATE USING (bucket_id = 'resi') WITH CHECK (bucket_id = 'resi');
+
+CREATE POLICY "Allow anon delete on resi bucket" ON storage.objects
+  FOR DELETE USING (bucket_id = 'resi');
+

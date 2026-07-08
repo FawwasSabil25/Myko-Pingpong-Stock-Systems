@@ -56,7 +56,7 @@ function RekapIcon() {
 const pemilikNav: NavItem[] = [
   { label: "Beranda", href: "/beranda", icon: <HomeIcon /> },
   { label: "Produk", href: "/produk", icon: <ProdukIcon /> },
-  { label: "Pesanan", href: "/pesanan", icon: <PesananIcon /> },
+  { label: "Pesanan", href: "/pemilik/pesanan", icon: <PesananIcon /> },
   { label: "Rekap", href: "/rekap", icon: <RekapIcon /> },
 ];
 
