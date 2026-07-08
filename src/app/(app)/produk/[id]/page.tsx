@@ -12,6 +12,7 @@ interface Varian {
   nama_varian: string;
   jumlah_stok: number;
   reorder_point: number;
+  lokasi_penyimpanan?: string | null;
 }
 
 interface Produk {
@@ -155,7 +156,7 @@ export default function DetailProdukPage() {
                 <path d="M12 22V12" />
               </svg>
             </div>
-            <div className="flex-1 flex flex-col gap-1">
+            <div className="flex-1 flex flex-col gap-1 min-w-0">
               {produk.kategori && (
                 <span
                   className="self-start text-[10px] leading-[15px] px-2 py-0.5 rounded-sm"
@@ -165,7 +166,7 @@ export default function DetailProdukPage() {
                 </span>
               )}
               <h2
-                className="text-xl font-semibold leading-7"
+                className="text-xl font-semibold leading-7 truncate"
                 style={{ color: "#191C1E" }}
               >
                 {produk.nama_produk}
@@ -198,13 +199,13 @@ export default function DetailProdukPage() {
           </div>
         </div>
 
-        {/* Varian List */}
+        {/* Stok per Varian — UC-02 */}
         <div className="flex flex-col gap-3">
           <h3
             className="text-lg font-semibold leading-6"
             style={{ color: "#00647C" }}
           >
-            Daftar Varian ({produk.varian.length})
+            Stok per Varian
           </h3>
 
           {produk.varian.length === 0 ? (
@@ -212,44 +213,122 @@ export default function DetailProdukPage() {
               Belum ada varian untuk produk ini.
             </p>
           ) : (
-            <div className="flex flex-col gap-2">
-              {produk.varian.map((v) => (
-                <div
-                  key={v.id_varian}
-                  className="bg-white rounded-lg border border-[#E0E3E5] p-4 flex items-center justify-between"
+            <div
+              className="bg-white rounded-xl overflow-hidden"
+              style={{ boxShadow: "0px 4px 12px rgba(0,0,0,0.05)" }}
+            >
+              {/* Table Header */}
+              <div
+                className="grid grid-cols-[1fr_70px_70px_80px] gap-2 px-4 py-3"
+                style={{ backgroundColor: "#F7F9FB" }}
+              >
+                <span
+                  className="text-xs font-semibold uppercase tracking-wider"
+                  style={{ color: "#6E797E" }}
                 >
-                  <div className="flex flex-col gap-0.5">
+                  Varian
+                </span>
+                <span
+                  className="text-xs font-semibold uppercase tracking-wider text-center"
+                  style={{ color: "#6E797E" }}
+                >
+                  Stok
+                </span>
+                <span
+                  className="text-xs font-semibold uppercase tracking-wider text-center"
+                  style={{ color: "#6E797E" }}
+                >
+                  ROP
+                </span>
+                <span
+                  className="text-xs font-semibold uppercase tracking-wider text-center"
+                  style={{ color: "#6E797E" }}
+                >
+                  Status
+                </span>
+              </div>
+
+              {/* Table Rows */}
+              {produk.varian.map((v, idx) => {
+                const isLow =
+                  v.reorder_point > 0 && v.jumlah_stok <= v.reorder_point;
+
+                return (
+                  <div
+                    key={v.id_varian}
+                    className={`grid grid-cols-[1fr_70px_70px_80px] gap-2 px-4 py-3.5 items-center ${
+                      idx < produk.varian.length - 1
+                        ? "border-b border-[#E0E3E5]"
+                        : ""
+                    }`}
+                    style={{
+                      backgroundColor: isLow
+                        ? "rgba(239, 68, 68, 0.04)"
+                        : "transparent",
+                    }}
+                  >
+                    {/* Variant name & Storage Location */}
+                    <div className="flex flex-col min-w-0">
+                      <span
+                        className="text-sm font-medium truncate"
+                        style={{ color: "#191C1E" }}
+                      >
+                        {v.nama_varian}
+                      </span>
+                      {v.lokasi_penyimpanan && (
+                        <span
+                          className="text-[11px] truncate leading-4 font-normal"
+                          style={{ color: "#6E797E" }}
+                          title={v.lokasi_penyimpanan}
+                        >
+                          Lokasi: {v.lokasi_penyimpanan}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Stock count */}
+                    <div className="flex items-center justify-center gap-1.5">
+                      <div
+                        className="w-2 h-2 rounded-full shrink-0"
+                        style={{
+                          backgroundColor: isLow ? "#EF4444" : "#22C55E",
+                        }}
+                      />
+                      <span
+                        className="text-sm font-semibold tabular-nums"
+                        style={{
+                          color: isLow ? "#DC2626" : "#3E484D",
+                        }}
+                      >
+                        {v.jumlah_stok}
+                      </span>
+                    </div>
+
+                    {/* Reorder point */}
                     <span
-                      className="text-sm font-semibold"
-                      style={{ color: "#191C1E" }}
+                      className="text-sm text-center tabular-nums"
+                      style={{ color: "#6E797E" }}
                     >
-                      {v.nama_varian}
+                      {v.reorder_point}
                     </span>
-                    <span className="text-xs" style={{ color: "#6E797E" }}>
-                      ROP: {v.reorder_point}
-                    </span>
+
+                    {/* Status badge */}
+                    <div className="flex justify-center">
+                      <span
+                        className="text-[11px] leading-[16px] font-semibold px-2.5 py-1 rounded-full"
+                        style={{
+                          backgroundColor: isLow
+                            ? "rgba(239, 68, 68, 0.1)"
+                            : "rgba(34, 197, 94, 0.1)",
+                          color: isLow ? "#DC2626" : "#16A34A",
+                        }}
+                      >
+                        {isLow ? "Rendah" : "Aman"}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="w-1.5 h-1.5 rounded-full"
-                      style={{
-                        backgroundColor:
-                          v.jumlah_stok > v.reorder_point
-                            ? "#22C55E"
-                            : v.jumlah_stok > 0
-                              ? "#F59E0B"
-                              : "#EF4444",
-                      }}
-                    />
-                    <span
-                      className="text-sm font-semibold tabular-nums"
-                      style={{ color: "#3E484D" }}
-                    >
-                      {v.jumlah_stok} pcs
-                    </span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

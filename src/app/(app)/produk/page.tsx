@@ -71,6 +71,11 @@ export default function ProdukPage() {
     return varian.reduce((sum, v) => sum + v.jumlah_stok, 0);
   }
 
+  // SR-06: Check if any variant is at or below reorder point
+  function hasLowStockVariant(varian: Varian[]) {
+    return varian.some((v) => v.reorder_point > 0 && v.jumlah_stok <= v.reorder_point);
+  }
+
   return (
     <div className="flex flex-col min-h-screen bg-white">
       {/* Main Canvas */}
@@ -143,6 +148,27 @@ export default function ProdukPage() {
               onChange={(e) => setSearch(e.target.value)}
               className="flex-1 bg-transparent text-base outline-none placeholder:text-[#6E797E]"
             />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-black/5 transition-colors cursor-pointer"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#6E797E"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M18 6 6 18" />
+                  <path d="m6 6 12 12" />
+                </svg>
+              </button>
+            )}
           </div>
 
           {/* Category pills */}
@@ -206,12 +232,29 @@ export default function ProdukPage() {
                 ? "Tidak ada produk yang cocok dengan filter."
                 : "Belum ada produk. Tambah produk pertama Anda!"}
             </p>
+            {(search || activeKategori) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch("");
+                  setActiveKategori(null);
+                }}
+                className="text-sm font-medium px-4 py-2 rounded-lg transition-colors cursor-pointer"
+                style={{
+                  color: "#00647C",
+                  backgroundColor: "rgba(0,100,124,0.08)",
+                }}
+              >
+                Reset Filter
+              </button>
+            )}
           </div>
         ) : (
           <div className="flex flex-col gap-4">
             {filtered.map((produk) => {
               const totalStok = getTotalStok(produk.varian);
               const varianCount = produk.varian.length;
+              const isLow = hasLowStockVariant(produk.varian);
 
               return (
                 <button
@@ -288,35 +331,53 @@ export default function ProdukPage() {
                     </div>
                   </div>
 
-                  {/* Bottom row: stock info */}
+                  {/* Bottom row: stock info with SR-06 low stock indicator */}
                   <div className="flex items-center justify-between pt-3 border-t border-[#E0E3E5]">
                     <div className="flex items-center gap-2">
                       <div
                         className="w-2 h-2 rounded-full"
                         style={{
-                          backgroundColor:
-                            totalStok > 0 ? "#22C55E" : "#EF4444",
+                          backgroundColor: isLow
+                            ? "#EF4444"
+                            : totalStok > 0
+                              ? "#22C55E"
+                              : "#EF4444",
                         }}
                       />
                       <span
                         className="text-sm font-semibold"
-                        style={{ color: "#3E484D" }}
+                        style={{
+                          color: isLow ? "#DC2626" : "#3E484D",
+                        }}
                       >
                         Stok: {totalStok} pcs
                       </span>
+                      {isLow && (
+                        <span
+                          className="text-xs font-semibold"
+                          style={{ color: "#DC2626" }}
+                        >
+                          (Rendah)
+                        </span>
+                      )}
                     </div>
 
                     <span
                       className="text-xs font-medium px-2 py-1 rounded-md"
                       style={{
-                        backgroundColor:
-                          totalStok > 0
+                        backgroundColor: isLow
+                          ? "rgba(239,68,68,0.1)"
+                          : totalStok > 0
                             ? "rgba(34,197,94,0.1)"
                             : "rgba(239,68,68,0.1)",
-                        color: totalStok > 0 ? "#16A34A" : "#DC2626",
+                        color: isLow
+                          ? "#DC2626"
+                          : totalStok > 0
+                            ? "#16A34A"
+                            : "#DC2626",
                       }}
                     >
-                      {totalStok > 0 ? "Tersedia" : "Habis"}
+                      {isLow ? "Stok Rendah" : totalStok > 0 ? "Tersedia" : "Habis"}
                     </span>
                   </div>
                 </button>

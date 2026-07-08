@@ -11,6 +11,7 @@ interface VarianData {
   nama_varian: string;
   jumlah_stok: number;
   reorder_point: number;
+  lokasi_penyimpanan: string;
   _deleted?: boolean;
 }
 
@@ -54,6 +55,7 @@ export default function EditProdukPage() {
       nama_varian: v.nama_varian,
       jumlah_stok: v.jumlah_stok,
       reorder_point: v.reorder_point,
+      lokasi_penyimpanan: v.lokasi_penyimpanan || "",
     }));
     setVarianList(varians);
     setOriginalVarian(varians);
@@ -63,7 +65,7 @@ export default function EditProdukPage() {
   function addVarian() {
     setVarianList([
       ...varianList,
-      { nama_varian: "", jumlah_stok: 0, reorder_point: 0 },
+      { nama_varian: "", jumlah_stok: 0, reorder_point: 0, lokasi_penyimpanan: "" },
     ]);
   }
 
@@ -75,22 +77,34 @@ export default function EditProdukPage() {
     const target = updated[index];
 
     if (target.id_varian) {
-      // Existing varian — mark as deleted
       updated[index] = { ...target, _deleted: true };
     } else {
-      // New varian — just remove
       updated.splice(index, 1);
     }
     setVarianList(updated);
   }
 
-  function updateVarianName(index: number, value: string) {
+  function updateVarianField(index: number, field: keyof VarianData, value: string | number) {
     const updated = [...varianList];
-    updated[index] = { ...updated[index], nama_varian: value };
+    updated[index] = { ...updated[index], [field]: value };
     setVarianList(updated);
     const newErrors = { ...errors };
     delete newErrors[`varian_${index}`];
+    delete newErrors[`varian_${index}_rop`];
+    delete newErrors[`varian_${index}_stok`];
     setErrors(newErrors);
+  }
+
+  function incrementStok(index: number) {
+    const current = varianList[index].jumlah_stok;
+    updateVarianField(index, "jumlah_stok", current + 1);
+  }
+
+  function decrementStok(index: number) {
+    const current = varianList[index].jumlah_stok;
+    if (current > 0) {
+      updateVarianField(index, "jumlah_stok", current - 1);
+    }
   }
 
   function validate(): boolean {
@@ -106,8 +120,20 @@ export default function EditProdukPage() {
     }
 
     varianList.forEach((v, i) => {
-      if (!v._deleted && !v.nama_varian.trim()) {
+      if (v._deleted) return;
+
+      if (!v.nama_varian.trim()) {
         newErrors[`varian_${i}`] = "Nama varian wajib diisi.";
+      }
+
+      // Business Rule #1: stok tidak boleh negatif
+      if (v.jumlah_stok < 0) {
+        newErrors[`varian_${i}_stok`] = "Stok tidak boleh negatif.";
+      }
+
+      // Business Rule #2: reorder_point tidak boleh ≤ 0 saat disimpan
+      if (v.reorder_point <= 0) {
+        newErrors[`varian_${i}_rop`] = "Batas minimum (reorder point) harus lebih besar dari 0.";
       }
     });
 
@@ -120,56 +146,53 @@ export default function EditProdukPage() {
     setShowConfirm(true);
   }
 
+  /**
+   * Stub: Cek Reorder Point (UC-06 trigger — akan diisi di Tahap 2)
+   */
+  function cekReorderPoint(
+    idVarian: string,
+    namaVarian: string,
+    jumlahStok: number,
+    reorderPoint: number
+  ) {
+    if (reorderPoint > 0 && jumlahStok <= reorderPoint) {
+      console.log(
+        `[STUB UC-06] Notifikasi Stok Menipis — Varian "${namaVarian}" (${idVarian}): ` +
+          `stok=${jumlahStok}, reorder_point=${reorderPoint}. ` +
+          `Akan kirim WA ke Pemilik di Tahap 2.`
+      );
+    }
+  }
+
   async function confirmSave() {
     setSaving(true);
+    try {
+      const res = await fetch(`/api/produk/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          nama_produk: namaProduk,
+          kategori: kategori,
+          varian: varianList,
+        }),
+      });
 
-    // 1. Update produk
-    const { error: produkError } = await supabase
-      .from("produk")
-      .update({
-        nama_produk: namaProduk.trim(),
-        kategori: kategori.trim() || null,
-      })
-      .eq("id_produk", id);
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "Gagal menyimpan perubahan.");
+      }
 
-    if (produkError) {
-      console.error("Error updating produk:", produkError);
       setSaving(false);
       setShowConfirm(false);
-      setErrors({ submit: produkError.message });
-      return;
+      setShowSuccess(true);
+    } catch (err: any) {
+      console.error("Error saving product changes:", err);
+      setSaving(false);
+      setShowConfirm(false);
+      setErrors({ submit: err.message || "Terjadi kesalahan koneksi server." });
     }
-
-    // 2. Process varian changes
-    for (const v of varianList) {
-      if (v._deleted && v.id_varian) {
-        // Delete existing varian
-        await supabase.from("varian").delete().eq("id_varian", v.id_varian);
-      } else if (v.id_varian) {
-        // Update existing varian name
-        const original = originalVarian.find(
-          (ov) => ov.id_varian === v.id_varian
-        );
-        if (original && original.nama_varian !== v.nama_varian.trim()) {
-          await supabase
-            .from("varian")
-            .update({ nama_varian: v.nama_varian.trim() })
-            .eq("id_varian", v.id_varian);
-        }
-      } else if (!v._deleted) {
-        // Insert new varian
-        await supabase.from("varian").insert({
-          id_produk: id,
-          nama_varian: v.nama_varian.trim(),
-          jumlah_stok: 0,
-          reorder_point: 0,
-        });
-      }
-    }
-
-    setSaving(false);
-    setShowConfirm(false);
-    setShowSuccess(true);
   }
 
   if (loading) {
@@ -252,7 +275,7 @@ export default function EditProdukPage() {
             </div>
           </section>
 
-          {/* Varian Section */}
+          {/* Varian Section — extended with UC-04/UC-07 fields */}
           <section className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <h2
@@ -270,29 +293,25 @@ export default function EditProdukPage() {
               <p className="text-sm text-red-500">{errors.varian_general}</p>
             )}
 
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-4">
               {varianList.map((v, index) => {
                 if (v._deleted) return null;
+
+                const isLowStock =
+                  v.reorder_point > 0 && v.jumlah_stok <= v.reorder_point;
 
                 return (
                   <div
                     key={v.id_varian || `new-${index}`}
-                    className="bg-white rounded-lg border border-[#BDC8CE] p-4"
+                    className="bg-white rounded-xl border border-[#BDC8CE] overflow-hidden"
                   >
-                    <div className="flex items-center justify-between mb-2">
+                    {/* Varian Card Header */}
+                    <div className="flex items-center justify-between px-4 py-3 bg-[#F7F9FB] border-b border-[#E0E3E5]">
                       <span
                         className="text-sm font-semibold"
                         style={{ color: "#3E484D" }}
                       >
-                        {v.id_varian ? "Varian" : "Varian Baru"}
-                        {v.id_varian && v.jumlah_stok > 0 && (
-                          <span
-                            className="ml-2 text-xs font-normal"
-                            style={{ color: "#6E797E" }}
-                          >
-                            (Stok: {v.jumlah_stok})
-                          </span>
-                        )}
+                        {v.id_varian ? `Varian` : "Varian Baru"}
                       </span>
                       {activeVarians.length > 1 && (
                         <button
@@ -322,29 +341,184 @@ export default function EditProdukPage() {
                         </button>
                       )}
                     </div>
-                    <div className="flex flex-col gap-2">
-                      <label
-                        className="text-sm font-semibold leading-5"
-                        style={{ color: "#3E484D" }}
-                      >
-                        Nama Varian <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={v.nama_varian}
-                        onChange={(e) => updateVarianName(index, e.target.value)}
-                        placeholder="Contoh: Ukuran L, Merah, 2.2mm"
-                        className={`w-full h-12 px-4 text-base bg-white border rounded-lg outline-none transition-colors placeholder:text-[#6B7280] ${
-                          errors[`varian_${index}`]
-                            ? "border-red-400 focus:border-red-500"
-                            : "border-[#BDC8CE] focus:border-[#00647C] focus:ring-1 focus:ring-[#00647C]/30"
-                        }`}
-                      />
-                      {errors[`varian_${index}`] && (
-                        <p className="text-sm text-red-500">
-                          {errors[`varian_${index}`]}
-                        </p>
+
+                    {/* Varian Card Body */}
+                    <div className="px-4 py-4 flex flex-col gap-4">
+                      {/* Warning Banner — stok di bawah batas minimum */}
+                      {isLowStock && (
+                        <div
+                          className="flex items-center gap-3 p-3 rounded-lg"
+                          style={{
+                            backgroundColor: "rgba(239, 68, 68, 0.06)",
+                            border: "1px solid rgba(239, 68, 68, 0.2)",
+                          }}
+                        >
+                          <svg
+                            width="18"
+                            height="18"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="#DC2626"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="shrink-0"
+                          >
+                            <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+                            <path d="M12 9v4" />
+                            <path d="M12 17h.01" />
+                          </svg>
+                          <span
+                            className="text-sm font-medium"
+                            style={{ color: "#DC2626" }}
+                          >
+                            Stok di bawah batas minimum
+                          </span>
+                        </div>
                       )}
+
+                      {/* Nama Varian */}
+                      <div className="flex flex-col gap-1.5">
+                        <label
+                          className="text-sm font-semibold leading-5"
+                          style={{ color: "#3E484D" }}
+                        >
+                          Nama Varian <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={v.nama_varian}
+                          onChange={(e) =>
+                            updateVarianField(index, "nama_varian", e.target.value)
+                          }
+                          placeholder="Contoh: Ukuran L, Merah, 2.2mm"
+                          className={`w-full h-12 px-4 text-base bg-white border rounded-lg outline-none transition-colors placeholder:text-[#6B7280] ${
+                            errors[`varian_${index}`]
+                              ? "border-red-400 focus:border-red-500"
+                              : "border-[#BDC8CE] focus:border-[#00647C] focus:ring-1 focus:ring-[#00647C]/30"
+                          }`}
+                        />
+                        {errors[`varian_${index}`] && (
+                          <p className="text-sm text-red-500">
+                            {errors[`varian_${index}`]}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Stok Saat Ini — stepper (UC-04) */}
+                      <div className="flex flex-col gap-1.5">
+                        <label
+                          className="text-sm font-semibold leading-5"
+                          style={{ color: "#3E484D" }}
+                        >
+                          Stok Saat Ini
+                        </label>
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => decrementStok(index)}
+                            disabled={v.jumlah_stok <= 0}
+                            className="w-10 h-10 rounded-lg border border-[#BDC8CE] flex items-center justify-center text-lg font-bold transition-colors cursor-pointer hover:bg-[#F7F9FB] disabled:opacity-30 disabled:cursor-not-allowed"
+                            style={{ color: "#3E484D" }}
+                          >
+                            −
+                          </button>
+                          <input
+                            type="number"
+                            min="0"
+                            value={v.jumlah_stok}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value, 10);
+                              updateVarianField(
+                                index,
+                                "jumlah_stok",
+                                isNaN(val) ? 0 : Math.max(0, val)
+                              );
+                            }}
+                            className="w-20 h-10 text-center text-base font-semibold bg-white border border-[#BDC8CE] rounded-lg outline-none focus:border-[#00647C] focus:ring-1 focus:ring-[#00647C]/30 tabular-nums"
+                            style={{ color: "#191C1E" }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => incrementStok(index)}
+                            className="w-10 h-10 rounded-lg border border-[#BDC8CE] flex items-center justify-center text-lg font-bold transition-colors cursor-pointer hover:bg-[#F7F9FB]"
+                            style={{ color: "#3E484D" }}
+                          >
+                            +
+                          </button>
+                          <span
+                            className="text-sm"
+                            style={{ color: "#6E797E" }}
+                          >
+                            pcs
+                          </span>
+                        </div>
+                        {errors[`varian_${index}_stok`] && (
+                          <p className="text-sm text-red-500">
+                            {errors[`varian_${index}_stok`]}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Batas Minimum / Reorder Point (UC-07) */}
+                      <div className="flex flex-col gap-1.5">
+                        <label
+                          className="text-sm font-semibold leading-5"
+                          style={{ color: "#3E484D" }}
+                        >
+                          Batas Minimum (Reorder Point)
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={v.reorder_point}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value, 10);
+                            updateVarianField(
+                              index,
+                              "reorder_point",
+                              isNaN(val) ? 0 : Math.max(0, val)
+                            );
+                          }}
+                          placeholder="0"
+                          className={`w-full h-12 px-4 text-base bg-white border rounded-lg outline-none transition-colors placeholder:text-[#6B7280] ${
+                            errors[`varian_${index}_rop`]
+                              ? "border-red-400 focus:border-red-500"
+                              : "border-[#BDC8CE] focus:border-[#00647C] focus:ring-1 focus:ring-[#00647C]/30"
+                          }`}
+                        />
+                        {errors[`varian_${index}_rop`] && (
+                          <p className="text-sm text-red-500">
+                            {errors[`varian_${index}_rop`]}
+                          </p>
+                        )}
+                        <p className="text-xs" style={{ color: "#6E797E" }}>
+                          Notifikasi akan dikirim jika stok ≤ batas ini
+                        </p>
+                      </div>
+
+                      {/* Lokasi Barang Disimpan */}
+                      <div className="flex flex-col gap-1.5">
+                        <label
+                          className="text-sm font-semibold leading-5"
+                          style={{ color: "#3E484D" }}
+                        >
+                          Lokasi Barang Disimpan
+                        </label>
+                        <input
+                          type="text"
+                          value={v.lokasi_penyimpanan}
+                          onChange={(e) =>
+                            updateVarianField(
+                              index,
+                              "lokasi_penyimpanan",
+                              e.target.value
+                            )
+                          }
+                          placeholder="Contoh: Rak A1, Gudang B"
+                          className="w-full h-12 px-4 text-base bg-white border border-[#BDC8CE] rounded-lg outline-none transition-colors placeholder:text-[#6B7280] focus:border-[#00647C] focus:ring-1 focus:ring-[#00647C]/30"
+                        />
+                      </div>
                     </div>
                   </div>
                 );
