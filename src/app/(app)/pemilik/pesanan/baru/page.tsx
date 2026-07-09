@@ -34,7 +34,15 @@ export default function InputPesananBaruPage() {
   const [produkList, setProdukList] = useState<Produk[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
 
-  // Form states
+  // New Form Fields states
+  const [platform, setPlatform] = useState("");
+  const [noPesanan, setNoPesanan] = useState("");
+  const [namaPelanggan, setNamaPelanggan] = useState("");
+  const [metodePengiriman, setMetodePengiriman] = useState("");
+  const [customShipping, setCustomShipping] = useState("");
+  const [catatan, setCatatan] = useState("");
+
+  // Product/Varian selection states
   const [selectedProductId, setSelectedProductId] = useState("");
   const [selectedVarianId, setSelectedVarianId] = useState("");
   const [jumlah, setJumlah] = useState(1);
@@ -43,7 +51,8 @@ export default function InputPesananBaruPage() {
   // Order items state
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
 
-  // Dialog & validation states
+  // Action and Dialog states
+  const [shouldNotify, setShouldNotify] = useState(true); // Flag to control WA notification
   const [showConfirm, setShowConfirm] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -148,14 +157,34 @@ export default function InputPesananBaruPage() {
     }
   }
 
-  // Submit Order (Validate Stock first)
-  async function handleSubmitOrder() {
+  // Submit Order (Validate fields and Stock levels)
+  async function handleSubmitOrder(notify: boolean) {
+    setShouldNotify(notify);
+    
+    // 1. Validasi field wajib (Business Rule #10)
+    if (!platform) {
+      setFormError("Platform/Sumber pesanan wajib diisi.");
+      return;
+    }
+    if (!namaPelanggan.trim()) {
+      setFormError("Nama pelanggan wajib diisi.");
+      return;
+    }
+    if (!metodePengiriman) {
+      setFormError("Metode pengiriman wajib diisi.");
+      return;
+    }
+    if (metodePengiriman === "Lainnya" && !customShipping.trim()) {
+      setFormError("Silakan isi metode pengiriman lainnya.");
+      return;
+    }
+
     if (orderItems.length === 0) {
       setFormError("Daftar item pesanan kosong. Harap tambahkan minimal 1 item.");
       return;
     }
 
-    // Business Rule #4: Validasi stok (jumlah_stok >= jumlah)
+    // 2. Business Rule #4: Validasi stok (jumlah_stok >= jumlah)
     const errors: string[] = [];
     orderItems.forEach((item) => {
       if (item.jumlah > item.jumlah_stok) {
@@ -203,6 +232,8 @@ export default function InputPesananBaruPage() {
       }
 
       // 2. Simpan Pesanan & Detail Pesanan via API
+      const shippingValue = metodePengiriman === "Lainnya" ? customShipping.trim() : metodePengiriman;
+
       const saveRes = await fetch("/api/pesanan", {
         method: "POST",
         headers: {
@@ -214,6 +245,12 @@ export default function InputPesananBaruPage() {
             jumlah: item.jumlah,
           })),
           resi_url: resiUrl,
+          platform: platform,
+          no_pesanan: noPesanan.trim() !== "" ? noPesanan.trim() : null,
+          nama_pelanggan: namaPelanggan.trim(),
+          metode_pengiriman: shippingValue,
+          catatan: catatan.trim() !== "" ? catatan.trim() : null,
+          kirim_notifikasi: shouldNotify,
         }),
       });
 
@@ -222,18 +259,18 @@ export default function InputPesananBaruPage() {
         throw new Error(errData.error || "Gagal menyimpan data pesanan.");
       }
 
-      const saveData = await saveRes.json();
-
       // 3. Notifikasi Fonnte STUB / console.log ke Pengelola (UC-09)
-      const detailsText = orderItems
-        .map((item) => `- ${item.nama_produk} (${item.nama_varian}) x${item.jumlah}`)
-        .join("\n");
+      if (shouldNotify) {
+        const detailsText = orderItems
+          .map((item) => `- ${item.nama_produk} (${item.nama_varian}) x${item.jumlah}`)
+          .join("\n");
 
-      console.log(
-        `[WA STUB] kirim ke Pengelola:\n📦 *Pesanan Baru Masuk*\n\nAda pesanan yang perlu dikemas:\n${detailsText}${
-          resiUrl ? `\n\n[Lampiran Resi PDF]: ${resiUrl}` : ""
-        }\n\nSilakan buka aplikasi untuk melihat detail pesanan.`
-      );
+        console.log(
+          `[WA STUB] kirim ke Pengelola:\n📦 *Pesanan Baru Masuk*\n\nAda pesanan yang perlu dikemas:\n${detailsText}\n\nPelanggan: ${namaPelanggan.trim()}\nPlatform: ${platform}\nPengiriman: ${shippingValue}${
+            resiUrl ? `\n\n[Lampiran Resi PDF]: ${resiUrl}` : ""
+          }\n\nSilakan buka aplikasi untuk melihat detail pesanan.`
+        );
+      }
 
       // Simpan berhasil, tampilkan success dialog
       setShowConfirm(false);
@@ -288,11 +325,129 @@ export default function InputPesananBaruPage() {
       </header>
 
       {/* Main Content Form */}
-      <div className="flex-1 px-6 py-6 flex flex-col gap-6 max-w-lg mx-auto w-full">
-        {/* Form Card: Tambah Item */}
+      <div className="flex-1 px-6 py-6 flex flex-col gap-6 max-w-lg mx-auto w-full pb-[120px]">
+        
+        {/* Card 1: Informasi Pesanan (Baru) */}
         <div
-          className="bg-white rounded-xl p-5 flex flex-col gap-4"
-          style={{ boxShadow: "0px 4px 12px rgba(0, 0, 0, 0.05)" }}
+          className="bg-white rounded-xl p-5 flex flex-col gap-4 border border-[#E2E8F0]"
+          style={{ boxShadow: "0px 4px 12px rgba(0, 0, 0, 0.03)" }}
+        >
+          <h2
+            className="text-base font-bold uppercase tracking-wider border-b border-[#F1F5F9] pb-2"
+            style={{ color: "#191C1E" }}
+          >
+            Informasi Pesanan
+          </h2>
+
+          {/* Platform Dropdown */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold text-[#6E797E] uppercase">
+              Platform/Sumber Pesanan <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={platform}
+              onChange={(e) => {
+                setPlatform(e.target.value);
+                setFormError(null);
+              }}
+              className="w-full h-11 px-3 border border-[#BDC8CE] rounded bg-white text-sm focus:outline-none focus:border-[#00647C]"
+            >
+              <option value="">-- Pilih Platform --</option>
+              <option value="Shopee">Shopee</option>
+              <option value="Tokopedia">Tokopedia</option>
+            </select>
+          </div>
+
+          {/* No. Pesanan */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold text-[#6E797E] uppercase">
+              No. Pesanan / Invoice (Opsional)
+            </label>
+            <input
+              type="text"
+              placeholder="Contoh: SPX12984928"
+              value={noPesanan}
+              onChange={(e) => setNoPesanan(e.target.value)}
+              className="w-full h-11 px-3 border border-[#BDC8CE] rounded bg-white text-sm focus:outline-none focus:border-[#00647C]"
+            />
+          </div>
+
+          {/* Nama Pelanggan */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold text-[#6E797E] uppercase">
+              Nama Pelanggan <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              placeholder="Masukkan nama pelanggan"
+              value={namaPelanggan}
+              onChange={(e) => {
+                setNamaPelanggan(e.target.value);
+                setFormError(null);
+              }}
+              className="w-full h-11 px-3 border border-[#BDC8CE] rounded bg-white text-sm focus:outline-none focus:border-[#00647C]"
+            />
+          </div>
+
+          {/* Metode Pengiriman Dropdown */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold text-[#6E797E] uppercase">
+              Metode Pengiriman <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={metodePengiriman}
+              onChange={(e) => {
+                setMetodePengiriman(e.target.value);
+                setCustomShipping("");
+                setFormError(null);
+              }}
+              className="w-full h-11 px-3 border border-[#BDC8CE] rounded bg-white text-sm focus:outline-none focus:border-[#00647C]"
+            >
+              <option value="">-- Pilih Metode Pengiriman --</option>
+              <option value="Diserahkan ke JNE">Diserahkan ke JNE</option>
+              <option value="Diserahkan ke JNT">Diserahkan ke JNT</option>
+              <option value="Dijemput Kurir">Dijemput Kurir</option>
+              <option value="Lainnya">Lainnya (Isi Manual)</option>
+            </select>
+          </div>
+
+          {/* Custom Shipping (only shown if "Lainnya" selected) */}
+          {metodePengiriman === "Lainnya" && (
+            <div className="flex flex-col gap-1.5 animate-[fadeIn_150ms_ease-out]">
+              <label className="text-xs font-bold text-[#6E797E] uppercase">
+                Isi Metode Pengiriman Lainnya <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                placeholder="Contoh: Ambil Sendiri, Kirim via Grab"
+                value={customShipping}
+                onChange={(e) => {
+                  setCustomShipping(e.target.value);
+                  setFormError(null);
+                }}
+                className="w-full h-11 px-3 border border-[#BDC8CE] rounded bg-white text-sm focus:outline-none focus:border-[#00647C]"
+              />
+            </div>
+          )}
+
+          {/* Catatan Pesanan */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold text-[#6E797E] uppercase">
+              Catatan Pesanan (Opsional)
+            </label>
+            <textarea
+              placeholder="Catatan tambahan seperti warna, packing kayu, dll."
+              value={catatan}
+              onChange={(e) => setCatatan(e.target.value)}
+              className="w-full h-20 p-3 border border-[#BDC8CE] rounded bg-white text-sm focus:outline-none focus:border-[#00647C] resize-none"
+            />
+          </div>
+        </div>
+
+        {/* Card 2: Pilih Item Pesanan */}
+        <div
+          className="bg-white rounded-xl p-5 flex flex-col gap-4 border border-[#E2E8F0]"
+          style={{ boxShadow: "0px 4px 12px rgba(0, 0, 0, 0.03)" }}
         >
           <h2
             className="text-base font-bold uppercase tracking-wider border-b border-[#F1F5F9] pb-2"
@@ -390,7 +545,7 @@ export default function InputPesananBaruPage() {
                 type="button"
                 onClick={handleAddItem}
                 disabled={!selectedVarianId}
-                className="w-full h-11 mt-2 text-sm font-semibold rounded text-[#00647C] bg-cyan-50 border border-[#00647C]/20 hover:bg-[#ecfeff] transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full h-11 mt-2 text-sm font-semibold rounded text-[#00647C] bg-cyan-50 border border-[#00647C]/20 hover:bg-[#ecfeff] transition-colors cursor-pointer disabled:opacity-50"
               >
                 Tambah ke Daftar Pesanan
               </button>
@@ -398,10 +553,10 @@ export default function InputPesananBaruPage() {
           )}
         </div>
 
-        {/* Selected Items Card */}
+        {/* Card 3: Selected Items Preview */}
         <div
-          className="bg-white rounded-xl p-5 flex flex-col gap-4"
-          style={{ boxShadow: "0px 4px 12px rgba(0, 0, 0, 0.05)" }}
+          className="bg-white rounded-xl p-5 flex flex-col gap-4 border border-[#E2E8F0]"
+          style={{ boxShadow: "0px 4px 12px rgba(0, 0, 0, 0.03)" }}
         >
           <h2
             className="text-base font-bold uppercase tracking-wider border-b border-[#F1F5F9] pb-2"
@@ -485,10 +640,10 @@ export default function InputPesananBaruPage() {
           )}
         </div>
 
-        {/* Receipt PDF Form */}
+        {/* Card 4: Resi PDF Form */}
         <div
-          className="bg-white rounded-xl p-5 flex flex-col gap-4"
-          style={{ boxShadow: "0px 4px 12px rgba(0, 0, 0, 0.05)" }}
+          className="bg-white rounded-xl p-5 flex flex-col gap-4 border border-[#E2E8F0]"
+          style={{ boxShadow: "0px 4px 12px rgba(0, 0, 0, 0.03)" }}
         >
           <h2
             className="text-base font-bold uppercase tracking-wider border-b border-[#F1F5F9] pb-2"
@@ -532,7 +687,7 @@ export default function InputPesananBaruPage() {
 
         {/* Error Alert Box */}
         {formError && (
-          <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+          <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg animate-[fadeIn_150ms_ease-out]">
             <svg
               className="w-4 h-4 text-red-500 shrink-0 mt-0.5"
               viewBox="0 0 24 24"
@@ -552,7 +707,7 @@ export default function InputPesananBaruPage() {
 
         {/* Stock Validation Error Banner (Business Rule #4) */}
         {stockErrors.length > 0 && (
-          <div className="flex flex-col gap-2 p-4 bg-red-50 border border-red-200 rounded-lg shadow-sm">
+          <div className="flex flex-col gap-2 p-4 bg-red-50 border border-red-200 rounded-lg shadow-sm animate-[fadeIn_150ms_ease-out]">
             <div className="flex items-center gap-2 text-red-700">
               <svg
                 className="w-5 h-5 shrink-0"
@@ -584,32 +739,60 @@ export default function InputPesananBaruPage() {
           </div>
         )}
 
-        {/* Action Button: Submit */}
-        <button
-          type="button"
-          onClick={handleSubmitOrder}
-          className="w-full h-12 flex items-center justify-center gap-2 rounded text-base font-bold text-white transition-opacity hover:opacity-95 cursor-pointer"
-          style={{
-            backgroundColor: "#00647C",
-            boxShadow: "0px 1px 2px rgba(0, 0, 0, 0.05)",
-          }}
-        >
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+        {/* Two Stacked Action Buttons (Revision) */}
+        <div className="flex flex-col gap-3.5 mt-2">
+          {/* Button 1: Save & Send WA (Primary, Green/Cyan) */}
+          <button
+            type="button"
+            onClick={() => handleSubmitOrder(true)}
+            className="w-full h-12 flex items-center justify-center gap-2 rounded text-base font-bold text-white transition-opacity hover:opacity-95 cursor-pointer"
+            style={{
+              backgroundColor: "#16A34A", // Green color for "Save & Send WA"
+              boxShadow: "0px 1px 2px rgba(0, 0, 0, 0.05)",
+            }}
           >
-            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-            <polyline points="17 21 17 13 7 13 7 21" />
-            <polyline points="7 3 7 8 15 8" />
-          </svg>
-          Simpan Pesanan
-        </button>
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M22 2L11 13" />
+              <path d="M22 2l-7 20-4-9-9-4 20-7z" />
+            </svg>
+            Simpan & Kirim Notifikasi WA
+          </button>
+
+          {/* Button 2: Save Only (Secondary, White/Gray) */}
+          <button
+            type="button"
+            onClick={() => handleSubmitOrder(false)}
+            className="w-full h-12 flex items-center justify-center gap-2 rounded-lg text-base font-semibold border border-[#BDC8CE] bg-white hover:bg-gray-50 transition-colors cursor-pointer text-[#3E484D]"
+            style={{
+              boxShadow: "0px 1px 2px rgba(0, 0, 0, 0.05)",
+            }}
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+              <polyline points="17 21 17 13 7 13 7 21" />
+              <polyline points="7 3 7 8 15 8" />
+            </svg>
+            Simpan Saja
+          </button>
+        </div>
       </div>
 
       {/* Confirmation Dialog */}
@@ -618,7 +801,11 @@ export default function InputPesananBaruPage() {
         onClose={() => setShowConfirm(false)}
         onConfirm={handleConfirmSave}
         title="Simpan Pesanan"
-        message="Apakah Anda yakin ingin memasukkan pesanan ini ke dalam sistem? Tindakan ini akan mencatat pesanan baru dan mengirim notifikasi WhatsApp stub."
+        message={`Apakah Anda yakin ingin memasukkan pesanan ini ke dalam sistem? ${
+          shouldNotify
+            ? "Tindakan ini akan mencatat pesanan baru dan mengirimkan log WhatsApp stub ke Pengelola."
+            : "Tindakan ini akan mencatat pesanan baru TANPA mengirimkan notifikasi WhatsApp."
+        }`}
         confirmLabel="Ya, Simpan"
         cancelLabel="Batal"
         loading={isSaving}
@@ -629,7 +816,11 @@ export default function InputPesananBaruPage() {
         open={showSuccess}
         onClose={handleSuccessClose}
         title="Pesanan Ditambahkan!"
-        message="Pesanan baru berhasil disimpan ke database. Notifikasi WhatsApp stub telah dicatat ke console log pengelola."
+        message={`Pesanan baru berhasil disimpan ke database. ${
+          shouldNotify
+            ? "Notifikasi WhatsApp stub telah dicatat ke console log pengelola."
+            : "Tidak ada notifikasi WhatsApp yang dikirimkan."
+        }`}
         buttonLabel="Kembali ke Daftar Pesanan"
       />
     </div>

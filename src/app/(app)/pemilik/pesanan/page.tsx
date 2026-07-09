@@ -28,6 +28,11 @@ interface Pesanan {
   status: string;
   resi_url: string | null;
   created_at: string;
+  platform?: string;
+  no_pesanan?: string | null;
+  nama_pelanggan?: string;
+  metode_pengiriman?: string;
+  catatan?: string | null;
   detail_pesanan: DetailPesanan[];
 }
 
@@ -229,6 +234,36 @@ export default function PemilikPesananPage() {
                     >
                       {pesanan.status}
                     </span>
+                  </div>
+
+                  {/* Row 1b: Customer, Platform, Shipping details (New) */}
+                  <div className="flex flex-col gap-1.5 text-xs text-[#3E484D] bg-[#F8FAFC] p-3 rounded-lg border border-[#E2E8F0]">
+                    <div>
+                      <span className="font-semibold text-slate-500 uppercase tracking-wider text-[10px] block mb-0.5">Pelanggan</span>
+                      <span className="font-bold text-[#191C1E] text-sm">{pesanan.nama_pelanggan || "-"}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 pt-1 border-t border-[#F1F5F9] mt-1">
+                      <div>
+                        <span className="font-semibold text-slate-500 uppercase tracking-wider text-[10px] block mb-0.5">Platform</span>
+                        <span className="font-semibold text-[#191C1E]">{pesanan.platform || "-"}</span>
+                      </div>
+                      <div>
+                        <span className="font-semibold text-slate-500 uppercase tracking-wider text-[10px] block mb-0.5">No. Pesanan</span>
+                        <span className="font-mono text-[#191C1E] truncate block">{pesanan.no_pesanan || "-"}</span>
+                      </div>
+                    </div>
+                    <div className="pt-1.5 border-t border-[#F1F5F9] mt-1">
+                      <span className="font-semibold text-slate-500 uppercase tracking-wider text-[10px] block mb-0.5">Metode Pengiriman</span>
+                      <span className="font-semibold text-[#191C1E]">{pesanan.metode_pengiriman || "-"}</span>
+                    </div>
+                    {pesanan.catatan && (
+                      <div className="pt-1.5 border-t border-[#F1F5F9] mt-1">
+                        <span className="font-semibold text-slate-500 uppercase tracking-wider text-[10px] block mb-0.5">Catatan</span>
+                        <p className="italic text-gray-600 font-medium bg-white p-2 rounded border border-[#E2E8F0] mt-0.5">
+                          &ldquo;{pesanan.catatan}&rdquo;
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   {/* Row 2: Detail Items */}

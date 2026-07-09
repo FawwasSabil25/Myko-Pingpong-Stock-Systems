@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
  *
  * Mengambil daftar pesanan aktif (status = 'baru').
  * Melakukan join ke detail_pesanan, varian, dan produk untuk ringkasan.
+ * Memuat kolom-kolom baru: platform, no_pesanan, nama_pelanggan, metode_pengiriman, catatan.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -17,6 +18,11 @@ export async function GET(request: NextRequest) {
         status,
         resi_url,
         created_at,
+        platform,
+        no_pesanan,
+        nama_pelanggan,
+        metode_pengiriman,
+        catatan,
         detail_pesanan (
           id_detail,
           id_pesanan,
@@ -59,17 +65,38 @@ export async function GET(request: NextRequest) {
 /**
  * POST /api/pesanan
  *
- * Menerima array item + resi_url opsional.
+ * Menerima detail pesanan lengkap beserta array item + resi_url opsional.
+ * Melakukan validasi field wajib (Business Rule #10).
  * Melakukan validasi stok server-side (Business Rule #4).
  * Memasukkan pesanan ke tabel `pesanan` dan baris-baris ke `detail_pesanan`.
- * Menampilkan console.log STUB notifikasi WA ke Pengelola.
+ * Kondisional: Menampilkan console.log STUB notifikasi WA ke Pengelola jika kirim_notifikasi = true.
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { items, resi_url } = body;
+    const {
+      items,
+      resi_url,
+      platform,
+      no_pesanan,
+      nama_pelanggan,
+      metode_pengiriman,
+      catatan,
+      kirim_notifikasi,
+    } = body;
 
-    // 1. Validasi input dasar
+    // 1. Validasi field wajib (Business Rule #10)
+    if (!platform || !platform.trim()) {
+      return NextResponse.json({ error: "Platform/Sumber pesanan wajib diisi." }, { status: 400 });
+    }
+    if (!nama_pelanggan || !nama_pelanggan.trim()) {
+      return NextResponse.json({ error: "Nama pelanggan wajib diisi." }, { status: 400 });
+    }
+    if (!metode_pengiriman || !metode_pengiriman.trim()) {
+      return NextResponse.json({ error: "Metode pengiriman wajib diisi." }, { status: 400 });
+    }
+
+    // 2. Validasi input array item
     if (!Array.isArray(items) || items.length === 0) {
       return NextResponse.json(
         { error: "Pesanan harus memiliki minimal 1 item." },
@@ -77,7 +104,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 2. Validasi stok server-side (Business Rule #4)
+    // 3. Validasi stok server-side (Business Rule #4)
     const variantIds = items.map((item: any) => item.id_varian);
     
     // Ambil data stok varian terbaru beserta produknya
@@ -134,12 +161,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 3. Simpan Pesanan ke Database
+    // 4. Simpan Pesanan ke Database
     // a. Insert ke tabel pesanan
     const { data: pesananData, error: pesananError } = await supabase
       .from("pesanan")
       .insert({
         status: "baru",
+        platform: platform.trim(),
+        no_pesanan: no_pesanan && no_pesanan.trim() !== "" ? no_pesanan.trim() : null,
+        nama_pelanggan: nama_pelanggan.trim(),
+        metode_pengiriman: metode_pengiriman.trim(),
+        catatan: catatan && catatan.trim() !== "" ? catatan.trim() : null,
         resi_url: resi_url || null,
       })
       .select()
@@ -188,17 +220,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 4. Panggil Notifikasi ke Pengelola (UC-09) - STUB / console.log saja
-    // Format list barang untuk notifikasi
-    const orderItemsText = detailData
-      .map((d: any) => `- ${d.varian.produk.nama_produk} (${d.varian.nama_varian}) x${d.jumlah}`)
-      .join("\n");
+    // 5. Panggil Notifikasi ke Pengelola (UC-09) jika kirim_notifikasi === true
+    if (kirim_notifikasi === true) {
+      // Format list barang untuk notifikasi
+      const orderItemsText = detailData
+        .map((d: any) => `- ${d.varian.produk.nama_produk} (${d.varian.nama_varian}) x${d.jumlah}`)
+        .join("\n");
 
-    const stubMessage = `📦 *Pesanan Baru Masuk*\n\nAda pesanan yang perlu dikemas:\n${orderItemsText}\n\nSilakan buka aplikasi untuk melihat detail pesanan.${
-      resi_url ? `\n\n[Lampiran Resi PDF]: ${resi_url}` : ""
-    }`;
+      const stubMessage = `📦 *Pesanan Baru Masuk*\n\nAda pesanan yang perlu dikemas:\n${orderItemsText}\n\nPelanggan: ${nama_pelanggan.trim()}\nPlatform: ${platform.trim()}\nPengiriman: ${metode_pengiriman.trim()}\n\nSilakan buka aplikasi untuk melihat detail pesanan.${
+        resi_url ? `\n\n[Lampiran Resi PDF]: ${resi_url}` : ""
+      }`;
 
-    console.log("[WA STUB] kirim ke Pengelola:", stubMessage);
+      console.log("[WA STUB] kirim ke Pengelola:", stubMessage);
+    } else {
+      console.log("[WA STUB SKIP] Pesanan disimpan tanpa kirim notifikasi WA.");
+    }
 
     return NextResponse.json({
       success: true,
