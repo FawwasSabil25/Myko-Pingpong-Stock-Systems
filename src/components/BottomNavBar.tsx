@@ -57,7 +57,7 @@ const pemilikNav: NavItem[] = [
   { label: "Beranda", href: "/beranda", icon: <HomeIcon /> },
   { label: "Produk", href: "/produk", icon: <ProdukIcon /> },
   { label: "Pesanan", href: "/pemilik/pesanan", icon: <PesananIcon /> },
-  { label: "Rekap", href: "/rekap", icon: <RekapIcon /> },
+  { label: "Rekap", href: "/pemilik/rekap", icon: <RekapIcon /> },
 ];
 
 const pengelolaNav: NavItem[] = [
