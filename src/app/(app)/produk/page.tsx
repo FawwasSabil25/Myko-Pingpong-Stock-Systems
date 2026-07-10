@@ -18,6 +18,7 @@ interface Produk {
   kategori: string | null;
   created_at: string;
   harga?: number | null;
+  foto_url?: string | null;
   varian: Varian[];
 }
 
@@ -278,23 +279,31 @@ export default function ProdukPage() {
                 >
                   {/* Top row: icon + info */}
                   <div className="flex gap-4">
-                    {/* Product icon placeholder */}
-                    <div className="w-20 h-20 rounded-lg bg-[#ECEEF0] flex items-center justify-center shrink-0">
-                      <svg
-                        width="32"
-                        height="32"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="#94A3B8"
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="m7.5 4.27 9 5.15" />
-                        <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
-                        <path d="m3.3 7 8.7 5 8.7-5" />
-                        <path d="M12 22V12" />
-                      </svg>
+                    {/* Product image or placeholder */}
+                    <div className="w-20 h-20 rounded-lg bg-[#ECEEF0] overflow-hidden flex items-center justify-center shrink-0 border border-slate-100">
+                      {produk.foto_url ? (
+                        <img
+                          src={produk.foto_url}
+                          alt={produk.nama_produk}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <svg
+                          width="32"
+                          height="32"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="#94A3B8"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="m7.5 4.27 9 5.15" />
+                          <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+                          <path d="m3.3 7 8.7 5 8.7-5" />
+                          <path d="M12 22V12" />
+                        </svg>
+                      )}
                     </div>
 
                     {/* Info */}

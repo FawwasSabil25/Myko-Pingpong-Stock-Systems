@@ -53,6 +53,9 @@ export default function BerandaPage() {
   const [activeOrdersCount, setActiveOrdersCount] = useState(0);
   const [dailyOutgoing, setDailyOutgoing] = useState<DailyOutgoingData[]>([]);
   const [totalOutgoingCount, setTotalOutgoingCount] = useState(0);
+  const [monthlyRevenue, setMonthlyRevenue] = useState(0);
+  const [monthlySoldUnits, setMonthlySoldUnits] = useState(0);
+  const [sparklineData, setSparklineData] = useState<number[]>([]);
 
   // Pengelola order list state
   const [activeOrders, setActiveOrders] = useState<OrderSummary[]>([]);
@@ -103,23 +106,46 @@ export default function BerandaPage() {
         if (orderError) throw orderError;
         setActiveOrdersCount(count || 0);
 
-        // 3. Fetch outgoing stock for the last 7 days (Pergerakan Stok 7 Hari)
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6); // include today
-        sevenDaysAgo.setHours(0, 0, 0, 0);
+        // 3. Fetch outgoing stock for the last 30 days and current month (Combined Query)
+        const startOfMonth = new Date();
+        startOfMonth.setDate(1);
+        startOfMonth.setHours(0, 0, 0, 0);
+
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
+        thirtyDaysAgo.setHours(0, 0, 0, 0);
+
+        const queryDate = startOfMonth < thirtyDaysAgo ? startOfMonth : thirtyDaysAgo;
 
         const { data: histData, error: histError } = await supabase
           .from("histori_stok")
-          .select("jumlah, tanggal")
+          .select(`
+            jumlah,
+            tanggal,
+            varian (
+              produk (
+                harga
+              )
+            )
+          `)
           .eq("jenis", "keluar")
-          .gte("tanggal", sevenDaysAgo.toISOString());
+          .gte("tanggal", queryDate.toISOString());
 
         if (histError) throw histError;
 
         const parsedHist = histData || [];
+
+        // Compute monthly totals
+        let tempMonthlyRevenue = 0;
+        let tempMonthlySold = 0;
+
+        // Compute 7-day bar chart
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+        sevenDaysAgo.setHours(0, 0, 0, 0);
+
         const daysOfWeek = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
         const last7Days: DailyOutgoingData[] = [];
-
         for (let i = 6; i >= 0; i--) {
           const d = new Date();
           d.setDate(d.getDate() - i);
@@ -128,17 +154,45 @@ export default function BerandaPage() {
           last7Days.push({ label: dayName, dateStr, amount: 0 });
         }
 
+        // Compute 30-day sparkline
+        const last30DaysList: { dateStr: string; amount: number }[] = [];
+        for (let i = 29; i >= 0; i--) {
+          const d = new Date();
+          d.setDate(d.getDate() - i);
+          const dateStr = d.toISOString().split("T")[0];
+          last30DaysList.push({ dateStr, amount: 0 });
+        }
+
         parsedHist.forEach((h: any) => {
           const hDate = h.tanggal.split("T")[0];
-          const match = last7Days.find((day) => day.dateStr === hDate);
-          if (match) {
-            match.amount += h.jumlah;
+          const qty = h.jumlah || 0;
+          const harga = h.varian?.produk?.harga || 0;
+
+          // If within current month
+          if (h.tanggal >= startOfMonth.toISOString()) {
+            tempMonthlySold += qty;
+            tempMonthlyRevenue += qty * harga;
+          }
+
+          // If within last 7 days
+          const match7 = last7Days.find((day) => day.dateStr === hDate);
+          if (match7) {
+            match7.amount += qty;
+          }
+
+          // If within last 30 days
+          const match30 = last30DaysList.find((day) => day.dateStr === hDate);
+          if (match30) {
+            match30.amount += qty;
           }
         });
 
         const totalOutgoing = last7Days.reduce((sum, d) => sum + d.amount, 0);
         setDailyOutgoing(last7Days);
         setTotalOutgoingCount(totalOutgoing);
+        setMonthlyRevenue(tempMonthlyRevenue);
+        setMonthlySoldUnits(tempMonthlySold);
+        setSparklineData(last30DaysList.map((d) => d.amount));
 
       } else if (userRole === "pengelola") {
         // 1. Fetch active orders for Pengelola list
@@ -175,6 +229,40 @@ export default function BerandaPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function renderSparkline(data: number[]) {
+    if (data.length === 0) return null;
+    const maxVal = Math.max(...data, 1);
+    const width = 120;
+    const height = 40;
+    const padding = 2;
+    
+    // Generate points
+    const points = data.map((val, idx) => {
+      const x = (idx / (data.length - 1)) * (width - 2 * padding) + padding;
+      const y = height - ((val / maxVal) * (height - 2 * padding) + padding);
+      return `${x},${y}`;
+    }).join(" ");
+
+    return (
+      <svg width={width} height={height} className="overflow-visible">
+        <polyline
+          fill="none"
+          stroke="#00647C"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          points={points}
+        />
+        <circle
+          cx={(width - 2 * padding) + padding}
+          cy={height - ((data[data.length - 1] / maxVal) * (height - 2 * padding) + padding)}
+          r="3"
+          fill="#00647C"
+        />
+      </svg>
+    );
   }
 
   function handleReset() {
@@ -342,6 +430,58 @@ export default function BerandaPage() {
                   <path d="M12 5v14" />
                 </svg>
               </Link>
+            </div>
+
+            {/* Section - Total Terjual & Pendapatan (Figma Node 44:139) */}
+            <div className="flex flex-col gap-3">
+              <h2
+                className="text-2xl font-semibold leading-8"
+                style={{ color: "#191C1E", fontFamily: "Inter" }}
+              >
+                Total Terjual & Pendapatan
+              </h2>
+              <div
+                className="bg-white border rounded-2xl p-6 flex flex-col gap-4"
+                style={{
+                  borderColor: "rgba(189, 200, 206, 0.3)",
+                  boxShadow: "0px 4px 12px rgba(0, 0, 0, 0.05)",
+                }}
+              >
+                <div className="flex items-start justify-between gap-4">
+                  {/* Revenue / Units Sold */}
+                  <div className="flex flex-col gap-1 min-w-0 flex-1">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-[#6E797E]">
+                      Bulan Ini
+                    </span>
+                    <span className="text-2xl font-bold text-[#00647C] leading-8 truncate">
+                      Rp {monthlyRevenue.toLocaleString("id-ID")}
+                    </span>
+                    <span className="text-sm font-semibold text-[#191C1E] mt-1">
+                      {monthlySoldUnits} unit terjual
+                    </span>
+                  </div>
+
+                  {/* Sparkline Graphic */}
+                  <div className="shrink-0 flex flex-col items-end gap-1.5">
+                    <span className="text-[10px] font-semibold text-[#6E797E] uppercase tracking-wider">
+                      Tren 30 Hari
+                    </span>
+                    <div className="h-10 w-[120px] flex items-center justify-center bg-slate-50 rounded border border-slate-100 p-1">
+                      {renderSparkline(sparklineData)}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer Link Button */}
+                <div className="border-t border-slate-100 pt-3 flex justify-end">
+                  <Link
+                    href="/pemilik/rekap/penjualan"
+                    className="h-10 px-4 border border-[#00647C] text-[#00647C] rounded-lg flex items-center justify-center text-xs font-semibold hover:bg-[#00647C]/5 transition-colors"
+                  >
+                    Lihat Detail
+                  </Link>
+                </div>
+              </div>
             </div>
 
             {/* Section - Mini Chart: Pergerakan Stok */}

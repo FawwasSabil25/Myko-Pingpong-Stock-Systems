@@ -5,24 +5,26 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getRole } from "@/lib/role";
 
-interface PenjualanAgg {
-  id_varian: string;
+interface PenjualanTx {
+  id_histori: string;
+  tanggal: string;
   nama_produk: string;
   nama_varian: string;
-  total_terjual: number;
+  jumlah: number;
+  harga_satuan: number;
+  total_pendapatan: number;
 }
 
 export default function RekapPenjualanPage() {
   const router = useRouter();
-  const [penjualanList, setPenjualanList] = useState<PenjualanAgg[]>([]);
+  const [penjualanList, setPenjualanList] = useState<PenjualanTx[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Filter & Sort states
+  // Filter states
   const [periode, setPeriode] = useState("month");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [sort, setSort] = useState("terjual");
 
   useEffect(() => {
     const role = getRole();
@@ -34,21 +36,20 @@ export default function RekapPenjualanPage() {
 
   useEffect(() => {
     fetchPenjualan();
-  }, [periode, startDate, endDate, sort]);
+  }, [periode, startDate, endDate]);
 
   async function fetchPenjualan() {
     try {
       setLoading(true);
       setError(null);
 
-      // Pastikan custom dates sudah diisi jika periode = custom
       if (periode === "custom" && (!startDate || !endDate)) {
         setPenjualanList([]);
         setLoading(false);
         return;
       }
 
-      let url = `/api/rekap/penjualan?periode=${periode}&sort=${sort}&`;
+      let url = `/api/rekap/penjualan?periode=${periode}&`;
       if (periode === "custom") {
         url += `startDate=${new Date(startDate).toISOString()}&`;
         url += `endDate=${new Date(endDate).toISOString()}&`;
@@ -68,14 +69,24 @@ export default function RekapPenjualanPage() {
     }
   }
 
-  // Sum total units sold in filtered period
-  const grandTotal = penjualanList.reduce((sum, item) => sum + item.total_terjual, 0);
+  function formatTanggal(isoString: string) {
+    const d = new Date(isoString);
+    return d.toLocaleDateString("id-ID", {
+      day: "2-digit",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+
+  const grandTotalUnits = penjualanList.reduce((sum, item) => sum + item.jumlah, 0);
+  const grandTotalRevenue = penjualanList.reduce((sum, item) => sum + item.total_pendapatan, 0);
 
   return (
     <div className="flex flex-col min-h-screen bg-[#F8FAFC]">
       {/* Header */}
       <header
-        className="flex items-center gap-3 px-6 bg-white border-b border-[#F1F5F9]"
+        className="flex items-center gap-3 px-6 bg-white border-b border-[#F1F5F9] shrink-0"
         style={{
           height: "64px",
           boxShadow: "0px 1px 2px rgba(0, 0, 0, 0.05)",
@@ -98,26 +109,22 @@ export default function RekapPenjualanPage() {
             <path d="m15 18-6-6 6-6" />
           </svg>
         </Link>
-        <h1
-          className="text-lg font-bold leading-6"
-          style={{ color: "#00647C" }}
-        >
+        <h1 className="text-lg font-bold leading-6" style={{ color: "#00647C" }}>
           Rekap Penjualan
         </h1>
       </header>
 
       {/* Main Container */}
-      <div className="flex-1 px-6 py-6 flex flex-col gap-6 max-w-lg mx-auto w-full pb-[86px]">
-        {/* Filters and Sorts */}
+      <div className="flex-1 px-6 py-6 flex flex-col gap-6 max-w-lg mx-auto w-full pb-[100px]">
+        {/* Filters Card */}
         <div
           className="bg-white rounded-xl p-4 flex flex-col gap-4 border border-[#E2E8F0]"
           style={{ boxShadow: "0px 4px 12px rgba(0,0,0,0.03)" }}
         >
           <span className="text-xs font-bold text-[#191C1E] uppercase tracking-wider border-b border-[#F1F5F9] pb-2">
-            Periode & Urutan
+            Periode Penjualan
           </span>
 
-          {/* Period Select */}
           <div className="flex flex-col gap-1.5">
             <label className="text-[10px] font-bold text-[#6E797E] uppercase">
               Pilih Periode
@@ -134,7 +141,6 @@ export default function RekapPenjualanPage() {
             </select>
           </div>
 
-          {/* Custom Date Range Selectors */}
           {periode === "custom" && (
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1.5">
@@ -161,32 +167,19 @@ export default function RekapPenjualanPage() {
               </div>
             </div>
           )}
-
-          {/* Sort Select */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] font-bold text-[#6E797E] uppercase">
-              Urutkan Berdasarkan
-            </label>
-            <select
-              value={sort}
-              onChange={(e) => setSort(e.target.value)}
-              className="w-full h-10 px-3 border border-[#BDC8CE] rounded bg-white text-xs focus:outline-none focus:border-[#00647C]"
-            >
-              <option value="terjual">Paling Banyak Terjual</option>
-              <option value="produk">Nama Produk (A-Z)</option>
-            </select>
-          </div>
         </div>
 
-        {/* Grand Total Indicator */}
-        {!loading && (
-          <div
-            className="bg-white rounded-xl p-4 flex items-center justify-between border border-[#E2E8F0] shadow-sm"
-          >
-            <span className="text-sm font-semibold text-[#6E797E]">Total Unit Terjual:</span>
-            <span className="text-lg font-black text-[#00647C]">
-              {grandTotal} pcs
-            </span>
+        {/* Aggregate summary cards */}
+        {!loading && penjualanList.length > 0 && (
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-white rounded-xl p-4 border border-[#E2E8F0] shadow-sm flex flex-col gap-1">
+              <span className="text-[10px] font-semibold text-[#6E797E] uppercase">Total Terjual</span>
+              <span className="text-lg font-black text-[#191C1E]">{grandTotalUnits} unit</span>
+            </div>
+            <div className="bg-[#ECFDF5] rounded-xl p-4 border border-[#A7F3D0] shadow-sm flex flex-col gap-1">
+              <span className="text-[10px] font-semibold text-[#065F46] uppercase">Total Pendapatan</span>
+              <span className="text-lg font-black text-[#047857]">Rp {grandTotalRevenue.toLocaleString("id-ID")}</span>
+            </div>
           </div>
         )}
 
@@ -209,7 +202,7 @@ export default function RekapPenjualanPage() {
           </div>
         )}
 
-        {/* Sales Table / List */}
+        {/* Sales Table */}
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <div className="w-8 h-8 border-3 border-primary/30 border-t-primary rounded-full animate-spin" />
@@ -225,48 +218,41 @@ export default function RekapPenjualanPage() {
             </p>
           </div>
         ) : (
-          <div className="flex flex-col gap-3">
-            {penjualanList.map((item, index) => {
-              // Highlight item dengan penjualan terbanyak (hanya jika diurut berdasarkan terjual, index 0 adalah top seller)
-              const isTopSeller = sort === "terjual" && index === 0 && item.total_terjual > 0;
-
-              return (
-                <div
-                  key={item.id_varian}
-                  className={`bg-white rounded-xl p-4 flex items-center justify-between border transition-all ${
-                    isTopSeller ? "border-[#0891B2] bg-cyan-50/10" : "border-[#E2E8F0]"
-                  }`}
-                  style={{ boxShadow: "0px 2px 8px rgba(0,0,0,0.01)" }}
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    {isTopSeller && (
-                      <div className="w-8 h-8 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center shrink-0">
-                        <span className="text-base">👑</span>
-                      </div>
-                    )}
-                    <div className="flex flex-col min-w-0">
-                      <h3 className="text-sm font-semibold text-[#191C1E] truncate">
-                        {item.nama_produk}
-                      </h3>
-                      <p className="text-xs text-[#6E797E] truncate">
-                        Varian: {item.nama_varian}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col items-end shrink-0 pl-2">
-                    <span className="text-sm font-black text-[#191C1E]">
-                      {item.total_terjual} pcs
-                    </span>
-                    {isTopSeller && (
-                      <span className="text-[10px] font-bold text-cyan-600 mt-0.5">
-                        Produk Terlaris
-                      </span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+          <div
+            className="bg-white rounded-xl border border-[#E2E8F0] overflow-hidden"
+            style={{ boxShadow: "0px 4px 12px rgba(0,0,0,0.02)" }}
+          >
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-left">
+                <thead>
+                  <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0]">
+                    <th className="px-4 py-3 text-[10px] font-bold text-[#6E797E] uppercase tracking-wider">Tanggal</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-[#6E797E] uppercase tracking-wider">Produk</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-[#6E797E] uppercase tracking-wider text-center">Qty</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-[#6E797E] uppercase tracking-wider text-right">Total (Rp)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#E2E8F0] text-xs">
+                  {penjualanList.map((tx) => (
+                    <tr key={tx.id_histori} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-4 py-3.5 text-[#6E797E] whitespace-nowrap">
+                        {formatTanggal(tx.tanggal)}
+                      </td>
+                      <td className="px-4 py-3.5 font-medium text-[#191C1E]">
+                        <div className="font-semibold text-slate-800 line-clamp-1">{tx.nama_produk}</div>
+                        <div className="text-[10px] text-slate-400">Varian: {tx.nama_varian}</div>
+                      </td>
+                      <td className="px-4 py-3.5 text-center font-bold text-[#191C1E]">
+                        {tx.jumlah}
+                      </td>
+                      <td className="px-4 py-3.5 text-right font-bold text-[#00647C] whitespace-nowrap">
+                        {tx.total_pendapatan.toLocaleString("id-ID")}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>

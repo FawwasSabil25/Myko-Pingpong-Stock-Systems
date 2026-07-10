@@ -30,6 +30,40 @@ export default function EditProdukPage() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [fotoUrl, setFotoUrl] = useState<string | null>(null);
+  const [fotoFile, setFotoFile] = useState<File | null>(null);
+  const [uploadingFoto, setUploadingFoto] = useState(false);
+
+  async function handleFotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setFotoFile(file);
+      setUploadingFoto(true);
+      
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+        
+        const res = await fetch("/api/produk/upload-foto", {
+          method: "POST",
+          body: formData,
+        });
+        
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.error || "Gagal mengunggah foto.");
+        }
+        
+        const data = await res.json();
+        setFotoUrl(data.publicUrl);
+      } catch (err: any) {
+        console.error("Error uploading photo:", err);
+        setErrors({ ...errors, foto: err.message || "Gagal mengunggah foto." });
+      } finally {
+        setUploadingFoto(false);
+      }
+    }
+  }
 
   useEffect(() => {
     fetchProduk();
@@ -52,6 +86,7 @@ export default function EditProdukPage() {
     setNamaProduk(data.nama_produk);
     setKategori(data.kategori || "");
     setHarga(data.harga ? String(data.harga) : "");
+    setFotoUrl(data.foto_url || null);
     const varians = (data.varian || []).map((v: VarianData) => ({
       id_varian: v.id_varian,
       nama_varian: v.nama_varian,
@@ -182,6 +217,7 @@ export default function EditProdukPage() {
           nama_produk: namaProduk,
           kategori: kategori,
           harga: harga.trim() !== "" ? parseFloat(harga) : null,
+          foto_url: fotoUrl,
           varian: varianList,
         }),
       });
@@ -311,6 +347,61 @@ export default function EditProdukPage() {
               {errors.harga && (
                 <p className="text-sm text-red-500">{errors.harga}</p>
               )}
+            </div>
+          </section>
+
+          {/* Section: Foto Produk */}
+          <section className="flex flex-col gap-3">
+            <h2
+              className="text-2xl font-semibold leading-8"
+              style={{ color: "#00647C" }}
+            >
+              Foto Produk
+            </h2>
+            <div className="bg-white rounded-xl border border-[#BDC8CE] p-6 flex flex-col items-center gap-4">
+              {fotoUrl ? (
+                <div className="w-32 h-32 relative rounded-lg overflow-hidden border border-slate-200 bg-slate-50 flex items-center justify-center">
+                  <img
+                    src={fotoUrl}
+                    alt="Preview produk"
+                    className="w-full h-full object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFotoUrl(null);
+                      setFotoFile(null);
+                    }}
+                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors shadow cursor-pointer"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
+                </div>
+              ) : (
+                <div className="w-32 h-32 rounded-lg border-2 border-dashed border-[#BDC8CE] flex flex-col items-center justify-center gap-2 bg-[#F7F9FB] text-[#94A3B8]">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+                    <circle cx="9" cy="9" r="2" />
+                    <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+                  </svg>
+                  <span className="text-[10px] font-semibold text-center px-2">Belum ada foto</span>
+                </div>
+              )}
+
+              <label className="h-10 px-4 border border-[#00647C] text-[#00647C] font-semibold text-xs rounded-lg flex items-center justify-center cursor-pointer hover:bg-[#00647C]/5 transition-colors disabled:opacity-50 select-none">
+                {uploadingFoto ? "Mengunggah..." : "Pilih Foto"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFotoChange}
+                  disabled={uploadingFoto}
+                  className="hidden"
+                />
+              </label>
+              {errors.foto && <p className="text-xs text-red-500 font-semibold">{errors.foto}</p>}
             </div>
           </section>
 

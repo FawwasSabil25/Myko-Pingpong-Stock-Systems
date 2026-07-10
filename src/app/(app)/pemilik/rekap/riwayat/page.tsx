@@ -81,7 +81,6 @@ export default function RekapRiwayatPage() {
         url += `startDate=${new Date(startDate).toISOString()}&`;
       }
       if (endDate) {
-        // Set to end of the day for date range inclusive
         const d = new Date(endDate);
         d.setHours(23, 59, 59, 999);
         url += `endDate=${d.toISOString()}&`;
@@ -106,7 +105,6 @@ export default function RekapRiwayatPage() {
     return d.toLocaleDateString("id-ID", {
       day: "2-digit",
       month: "short",
-      year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
     });
@@ -122,7 +120,7 @@ export default function RekapRiwayatPage() {
     <div className="flex flex-col min-h-screen bg-[#F8FAFC]">
       {/* Header */}
       <header
-        className="flex items-center gap-3 px-6 bg-white border-b border-[#F1F5F9]"
+        className="flex items-center gap-3 px-6 bg-white border-b border-[#F1F5F9] shrink-0"
         style={{
           height: "64px",
           boxShadow: "0px 1px 2px rgba(0, 0, 0, 0.05)",
@@ -145,16 +143,13 @@ export default function RekapRiwayatPage() {
             <path d="m15 18-6-6 6-6" />
           </svg>
         </Link>
-        <h1
-          className="text-lg font-bold leading-6"
-          style={{ color: "#00647C" }}
-        >
+        <h1 className="text-lg font-bold leading-6" style={{ color: "#00647C" }}>
           Riwayat Pergerakan Stok
         </h1>
       </header>
 
       {/* Main Container */}
-      <div className="flex-1 px-6 py-6 flex flex-col gap-6 max-w-lg mx-auto w-full pb-[86px]">
+      <div className="flex-1 px-6 py-6 flex flex-col gap-6 max-w-lg mx-auto w-full pb-[100px]">
         {/* Filters Card */}
         <div
           className="bg-white rounded-xl p-4 flex flex-col gap-4 border border-[#E2E8F0]"
@@ -240,64 +235,72 @@ export default function RekapRiwayatPage() {
           </div>
         )}
 
-        {/* Riwayat List */}
+        {/* Riwayat Table */}
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <div className="w-8 h-8 border-3 border-primary/30 border-t-primary rounded-full animate-spin" />
           </div>
         ) : riwayatList.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <p className="text-sm text-[#6E797E]">
+            <p className="text-sm text-[#6E797E] text-center">
               Tidak ada data pergerakan stok untuk filter terpilih.
             </p>
           </div>
         ) : (
-          <div className="flex flex-col gap-3">
-            {riwayatList.map((item) => {
-              const isMasuk = item.jenis === "masuk";
-              return (
-                <div
-                  key={item.id_histori}
-                  className="bg-white rounded-xl p-4 flex items-center justify-between border border-[#E2E8F0] hover:border-[#CBD5E1] transition-all"
-                  style={{ boxShadow: "0px 2px 8px rgba(0,0,0,0.01)" }}
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    {/* Badge */}
-                    <span
-                      className={`w-14 text-center text-[10px] font-bold uppercase tracking-wider py-1 px-1.5 rounded shrink-0 ${
-                        isMasuk
-                          ? "bg-green-50 text-green-700 border border-green-200"
-                          : "bg-red-50 text-red-700 border border-red-200"
-                      }`}
-                    >
-                      {isMasuk ? "Masuk" : "Keluar"}
-                    </span>
-
-                    <div className="flex flex-col min-w-0">
-                      <h3 className="text-sm font-semibold text-[#191C1E] truncate">
-                        {item.varian.produk.nama_produk}
-                      </h3>
-                      <p className="text-xs text-[#6E797E] truncate">
-                        Varian: {item.varian.nama_varian} | Ref: {item.id_referensi || "Manual"}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col items-end shrink-0 pl-2">
-                    <span
-                      className={`text-sm font-extrabold ${
-                        isMasuk ? "text-green-600" : "text-red-500"
-                      }`}
-                    >
-                      {isMasuk ? `+${item.jumlah}` : `-${item.jumlah}`} pcs
-                    </span>
-                    <span className="text-[10px] text-[#6E797E] mt-0.5">
-                      {formatTanggal(item.tanggal)}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
+          <div
+            className="bg-white rounded-xl border border-[#E2E8F0] overflow-hidden"
+            style={{ boxShadow: "0px 4px 12px rgba(0,0,0,0.02)" }}
+          >
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-left">
+                <thead>
+                  <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0]">
+                    <th className="px-4 py-3 text-[10px] font-bold text-[#6E797E] uppercase tracking-wider">Tanggal</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-[#6E797E] uppercase tracking-wider">Tipe</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-[#6E797E] uppercase tracking-wider">Barang (Varian)</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-[#6E797E] uppercase tracking-wider text-center">Qty</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#E2E8F0] text-xs">
+                  {riwayatList.map((item) => {
+                    const isMasuk = item.jenis === "masuk";
+                    return (
+                      <tr key={item.id_histori} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-4 py-3.5 text-[#6E797E] whitespace-nowrap">
+                          {formatTanggal(item.tanggal)}
+                        </td>
+                        <td className="px-4 py-3.5 whitespace-nowrap">
+                          <span
+                            className={`inline-block text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded ${
+                              isMasuk
+                                ? "bg-green-50 text-green-700 border border-green-200"
+                                : "bg-red-50 text-red-700 border border-red-200"
+                            }`}
+                          >
+                            {isMasuk ? "Masuk" : "Keluar"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3.5 font-medium text-[#191C1E]">
+                          <div className="font-semibold text-slate-800 line-clamp-1">
+                            {item.varian.produk.nama_produk}
+                          </div>
+                          <div className="text-[10px] text-slate-400">
+                            Varian: {item.varian.nama_varian} | Ref: {item.id_referensi ? item.id_referensi.slice(0, 8) : "Manual"}
+                          </div>
+                        </td>
+                        <td
+                          className={`px-4 py-3.5 text-center font-bold text-sm whitespace-nowrap ${
+                            isMasuk ? "text-green-600" : "text-red-500"
+                          }`}
+                        >
+                          {isMasuk ? `+${item.jumlah}` : `-${item.jumlah}`}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>

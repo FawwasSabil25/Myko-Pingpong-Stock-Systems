@@ -202,12 +202,6 @@ export default function PengelolaOrderDetailPage({
               <span className="text-xs text-[#6E797E] block">No. WhatsApp (Dummy)</span>
               <span className="font-medium text-[#191C1E]">+62 812-3456-7890</span>
             </div>
-            <div>
-              <span className="text-xs text-[#6E797E] block">Alamat Pengiriman (Dummy)</span>
-              <span className="font-medium text-[#191C1E]">
-                Jl. Pingpong No. 45, Bandung, Jawa Barat, 40123
-              </span>
-            </div>
           </div>
         </div>
 
@@ -332,7 +326,7 @@ export default function PengelolaOrderDetailPage({
 
       {/* Bottom Action Bar (Fixed, UC-10 Catatan D) */}
       <div
-        className="fixed bottom-0 left-0 right-0 h-20 bg-white border-t border-[#ECEEF0] flex items-center justify-between px-6 gap-4 max-w-lg mx-auto z-10"
+        className="fixed bottom-[66px] left-0 right-0 h-20 bg-white border-t border-[#ECEEF0] flex items-center justify-between px-6 gap-4 max-w-lg mx-auto z-10"
         style={{
           boxShadow: "0px -4px 12px rgba(0, 0, 0, 0.05)",
         }}
