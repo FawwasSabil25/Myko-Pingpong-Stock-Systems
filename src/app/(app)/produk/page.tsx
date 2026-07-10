@@ -17,6 +17,7 @@ interface Produk {
   nama_produk: string;
   kategori: string | null;
   created_at: string;
+  harga?: number | null;
   varian: Varian[];
 }
 
@@ -308,10 +309,17 @@ export default function ProdukPage() {
                       >
                         {produk.nama_produk}
                       </h3>
-                      {/* Variant count */}
-                      <p className="text-sm" style={{ color: "#6E797E" }}>
-                        {varianCount} varian
-                      </p>
+                      {/* Variant count & Price */}
+                      <div className="flex items-center justify-between mt-1">
+                        <span className="text-xs" style={{ color: "#6E797E" }}>
+                          {varianCount} varian
+                        </span>
+                        {produk.harga !== null && produk.harga !== undefined && (
+                          <span className="text-sm font-extrabold text-[#00647C]">
+                            Rp {produk.harga.toLocaleString("id-ID")}
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     {/* Arrow */}

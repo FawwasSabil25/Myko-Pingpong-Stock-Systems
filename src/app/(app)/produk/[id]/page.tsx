@@ -21,6 +21,7 @@ interface Produk {
   kategori: string | null;
   created_at: string;
   updated_at: string;
+  harga?: number | null;
   varian: Varian[];
 }
 
@@ -159,19 +160,24 @@ export default function DetailProdukPage() {
             <div className="flex-1 flex flex-col gap-1 min-w-0">
               {produk.kategori && (
                 <span
-                  className="self-start text-[10px] leading-[15px] px-2 py-0.5 rounded-sm"
+                  className="self-start text-[10px] leading-[15px] px-2 py-0.5 rounded-sm font-semibold"
                   style={{ backgroundColor: "#E0E3E5", color: "#3E484D" }}
                 >
                   {produk.kategori.toUpperCase()}
                 </span>
               )}
               <h2
-                className="text-xl font-semibold leading-7 truncate"
+                className="text-xl font-bold leading-7 truncate mt-1"
                 style={{ color: "#191C1E" }}
               >
                 {produk.nama_produk}
               </h2>
-              <p className="text-sm" style={{ color: "#6E797E" }}>
+              {produk.harga !== null && produk.harga !== undefined && (
+                <p className="text-base font-extrabold text-[#00647C] mt-0.5">
+                  Rp {produk.harga.toLocaleString("id-ID")}
+                </p>
+              )}
+              <p className="text-xs mt-1" style={{ color: "#6E797E" }}>
                 Ditambahkan{" "}
                 {new Date(produk.created_at).toLocaleDateString("id-ID", {
                   day: "numeric",

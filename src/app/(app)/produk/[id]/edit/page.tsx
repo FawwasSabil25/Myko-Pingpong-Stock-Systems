@@ -22,6 +22,7 @@ export default function EditProdukPage() {
 
   const [namaProduk, setNamaProduk] = useState("");
   const [kategori, setKategori] = useState("");
+  const [harga, setHarga] = useState("");
   const [varianList, setVarianList] = useState<VarianData[]>([]);
   const [originalVarian, setOriginalVarian] = useState<VarianData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,6 +51,7 @@ export default function EditProdukPage() {
 
     setNamaProduk(data.nama_produk);
     setKategori(data.kategori || "");
+    setHarga(data.harga ? String(data.harga) : "");
     const varians = (data.varian || []).map((v: VarianData) => ({
       id_varian: v.id_varian,
       nama_varian: v.nama_varian,
@@ -114,6 +116,10 @@ export default function EditProdukPage() {
       newErrors.nama_produk = "Nama produk wajib diisi.";
     }
 
+    if (harga && (isNaN(Number(harga)) || Number(harga) < 0)) {
+      newErrors.harga = "Harga jual harus berupa angka positif.";
+    }
+
     const activeVarians = varianList.filter((v) => !v._deleted);
     if (activeVarians.length === 0) {
       newErrors.varian_general = "Minimal 1 varian harus ada.";
@@ -175,6 +181,7 @@ export default function EditProdukPage() {
         body: JSON.stringify({
           nama_produk: namaProduk,
           kategori: kategori,
+          harga: harga.trim() !== "" ? parseFloat(harga) : null,
           varian: varianList,
         }),
       });
@@ -272,6 +279,38 @@ export default function EditProdukPage() {
                 placeholder="Contoh: Bat, Rubber, Bola, Apparel"
                 className="w-full h-12 px-4 text-base bg-white border border-[#BDC8CE] rounded-lg outline-none transition-colors placeholder:text-[#6B7280] focus:border-[#00647C] focus:ring-1 focus:ring-[#00647C]/30"
               />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label
+                htmlFor="harga"
+                className="text-sm font-semibold leading-5"
+                style={{ color: "#3E484D" }}
+              >
+                Harga Jual (Rp)
+              </label>
+              <input
+                id="harga"
+                type="text"
+                value={harga}
+                onChange={(e) => {
+                  setHarga(e.target.value);
+                  if (errors.harga) {
+                    const newErrors = { ...errors };
+                    delete newErrors.harga;
+                    setErrors(newErrors);
+                  }
+                }}
+                placeholder="Contoh: 750000"
+                className={`w-full h-12 px-4 text-base bg-white border rounded-lg outline-none transition-colors placeholder:text-[#6B7280] ${
+                  errors.harga
+                    ? "border-red-400 focus:border-red-500"
+                    : "border-[#BDC8CE] focus:border-[#00647C] focus:ring-1 focus:ring-[#00647C]/30"
+                }`}
+              />
+              {errors.harga && (
+                <p className="text-sm text-red-500">{errors.harga}</p>
+              )}
             </div>
           </section>
 

@@ -11,12 +11,12 @@
 -- PRODUK (5 produk tenis meja)
 -- ============================================================
 
-INSERT INTO produk (id_produk, nama_produk, kategori) VALUES
-  ('a1b2c3d4-1111-4000-8000-000000000001', 'Bat Pingpong Yinhe T-11s', 'Bat'),
-  ('a1b2c3d4-2222-4000-8000-000000000002', 'Bola Nittaku 3-Star', 'Bola'),
-  ('a1b2c3d4-3333-4000-8000-000000000003', 'Rubber DHS Hurricane 3', 'Rubber'),
-  ('a1b2c3d4-4444-4000-8000-000000000004', 'Meja Pingpong Cornilleau 500M', 'Meja'),
-  ('a1b2c3d4-5555-4000-8000-000000000005', 'Kaos Myko Pingpong', 'Apparel');
+INSERT INTO produk (id_produk, nama_produk, kategori, harga) VALUES
+  ('a1b2c3d4-1111-4000-8000-000000000001', 'Bat Pingpong Yinhe T-11s', 'Bat', 650000),
+  ('a1b2c3d4-2222-4000-8000-000000000002', 'Bola Nittaku 3-Star', 'Bola', 120000),
+  ('a1b2c3d4-3333-4000-8000-000000000003', 'Rubber DHS Hurricane 3', 'Rubber', 600000),
+  ('a1b2c3d4-4444-4000-8000-000000000004', 'Meja Pingpong Cornilleau 500M', 'Meja', 8500000),
+  ('a1b2c3d4-5555-4000-8000-000000000005', 'Kaos Myko Pingpong', 'Apparel', 150000);
 
 -- ============================================================
 -- VARIAN (11 varian total, 2-3 per produk)

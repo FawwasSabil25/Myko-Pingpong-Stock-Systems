@@ -28,7 +28,7 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { nama_produk, kategori, varian } = body;
+    const { nama_produk, kategori, harga, varian } = body;
 
     if (!nama_produk || !nama_produk.trim()) {
       return NextResponse.json(
@@ -43,6 +43,7 @@ export async function PATCH(
       .update({
         nama_produk: nama_produk.trim(),
         kategori: kategori ? kategori.trim() : null,
+        harga: harga !== undefined && harga !== "" ? parseFloat(harga) : null,
       })
       .eq("id_produk", id);
 
