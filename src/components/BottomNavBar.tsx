@@ -83,7 +83,10 @@ export default function BottomNavBar() {
       style={{ boxShadow: "0px -4px 12px rgba(0, 0, 0, 0.05)", height: "66px" }}
     >
       {navItems.map((item) => {
-        const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+        const isActive =
+          pathname === item.href ||
+          pathname.startsWith(item.href + "/") ||
+          (item.href === "/pesanan" && pathname.startsWith("/pengelola/pesanan"));
 
         return (
           <Link

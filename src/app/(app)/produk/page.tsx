@@ -58,13 +58,20 @@ export default function ProdukPage() {
 
   // Filtered list
   const filtered = useMemo(() => {
-    return produkList.filter((p) => {
+    const list = produkList.filter((p) => {
       const matchSearch =
         !search ||
         p.nama_produk.toLowerCase().includes(search.toLowerCase());
       const matchKategori =
         !activeKategori || p.kategori === activeKategori;
       return matchSearch && matchKategori;
+    });
+
+    // Sort: products with any variant with stock <= reorder_point go to the top
+    return [...list].sort((a, b) => {
+      const aLow = hasLowStockVariant(a.varian) ? 1 : 0;
+      const bLow = hasLowStockVariant(b.varian) ? 1 : 0;
+      return bLow - aLow;
     });
   }, [produkList, search, activeKategori]);
 
@@ -262,9 +269,11 @@ export default function ProdukPage() {
                   key={produk.id_produk}
                   type="button"
                   onClick={() => router.push(`/produk/${produk.id_produk}`)}
-                  className="w-full text-left bg-white rounded-xl p-[17px] flex flex-col gap-4 transition-shadow hover:shadow-md cursor-pointer"
+                  className="w-full text-left rounded-xl p-[17px] flex flex-col gap-4 transition-shadow hover:shadow-md cursor-pointer border"
                   style={{
                     boxShadow: "0px 4px 12px rgba(0,0,0,0.05)",
+                    backgroundColor: isLow ? "#FFDAD6" : "#FFFFFF",
+                    borderColor: isLow ? "rgba(186, 26, 26, 0.2)" : "transparent",
                   }}
                 >
                   {/* Top row: icon + info */}
@@ -340,7 +349,12 @@ export default function ProdukPage() {
                   </div>
 
                   {/* Bottom row: stock info with SR-06 low stock indicator */}
-                  <div className="flex items-center justify-between pt-3 border-t border-[#E0E3E5]">
+                  <div
+                    className="flex items-center justify-between pt-3 border-t w-full"
+                    style={{
+                      borderColor: isLow ? "rgba(186, 26, 26, 0.2)" : "#E0E3E5",
+                    }}
+                  >
                     <div className="flex items-center gap-2">
                       <div
                         className="w-2 h-2 rounded-full"
@@ -355,19 +369,11 @@ export default function ProdukPage() {
                       <span
                         className="text-sm font-semibold"
                         style={{
-                          color: isLow ? "#DC2626" : "#3E484D",
+                          color: isLow ? "#BA1A1A" : "#3E484D",
                         }}
                       >
-                        Stok: {totalStok} pcs
+                        Stok: {totalStok} pcs {isLow && "(Rendah)"}
                       </span>
-                      {isLow && (
-                        <span
-                          className="text-xs font-semibold"
-                          style={{ color: "#DC2626" }}
-                        >
-                          (Rendah)
-                        </span>
-                      )}
                     </div>
 
                     <span

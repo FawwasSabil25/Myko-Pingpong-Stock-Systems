@@ -500,6 +500,24 @@ export default function BerandaPage() {
                           </span>
                         </div>
 
+                        {/* Image Placeholder - Figma style */}
+                        <div className="w-full h-[160px] bg-[#ECEEF0] rounded-lg flex items-center justify-center overflow-hidden shrink-0 border border-[#E0E3E5]">
+                          <svg
+                            width="48"
+                            height="48"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="#94A3B8"
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="m6 12 6-6 6 6" />
+                            <path d="m12 6v12" />
+                          </svg>
+                        </div>
+
                         {/* Order Item Details inside a Grey Box */}
                         <div className="bg-[#ECEEF0] rounded-lg p-4 flex flex-col gap-3">
                           <div>
@@ -530,20 +548,11 @@ export default function BerandaPage() {
                         </div>
                       </div>
 
-                      {/* Card Action Footer Bar */}
-                      <div
-                        className="bg-[#F2F4F6] border-t border-[#BDC8CE] px-6 py-4 flex items-center justify-between gap-3 shrink-0"
-                        style={{ height: "76px" }}
-                      >
+                      {/* Card Action Footer Bar - Figma style single wide button */}
+                      <div className="border-t border-[#BDC8CE] px-6 py-4 flex justify-center bg-white">
                         <Link
                           href={`/pengelola/pesanan/${order.id_pesanan}`}
-                          className="flex-1 max-w-[125px] h-11 border border-[#00647C] text-[#00647C] rounded-lg flex items-center justify-center text-xs font-semibold hover:bg-[#00647C]/5 transition-colors"
-                        >
-                          Lihat Detail
-                        </Link>
-                        <Link
-                          href={`/pengelola/pesanan/${order.id_pesanan}`}
-                          className="flex-1 max-w-[155px] h-11 bg-[#00647C] text-white rounded-lg flex items-center justify-center text-xs font-semibold hover:opacity-90 transition-opacity"
+                          className="w-full h-11 bg-[#00647C] text-white rounded-lg flex items-center justify-center text-sm font-semibold hover:opacity-90 transition-opacity"
                         >
                           Proses Pesanan
                         </Link>
