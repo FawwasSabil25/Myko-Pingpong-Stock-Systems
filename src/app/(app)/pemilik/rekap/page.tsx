@@ -22,17 +22,20 @@ interface HistoriStok {
   varian: Varian;
 }
 
-interface PenjualanAgg {
-  id_varian: string;
+interface PenjualanTransaction {
+  id_histori: string;
+  tanggal: string;
   nama_produk: string;
   nama_varian: string;
-  total_terjual: number;
+  jumlah: number;
+  harga_satuan: number;
+  total_pendapatan: number;
 }
 
 export default function RekapHubPage() {
   const router = useRouter();
   const [riwayatList, setRiwayatList] = useState<HistoriStok[]>([]);
-  const [penjualanList, setPenjualanList] = useState<PenjualanAgg[]>([]);
+  const [penjualanList, setPenjualanList] = useState<PenjualanTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -74,7 +77,7 @@ export default function RekapHubPage() {
   }
 
   // Sum total unit terjual in last 30 days
-  const totalTerjual = penjualanList.reduce((sum, item) => sum + item.total_terjual, 0);
+  const totalTerjual = penjualanList.reduce((sum, item) => sum + (item.jumlah || 0), 0);
 
   // Format tanggal singkat
   function formatTanggal(isoString: string) {
