@@ -9,6 +9,8 @@ import { ConfirmDialog, SuccessDialog } from "@/components/Dialog";
 interface Varian {
   id_varian: string;
   nama_varian: string;
+  jumlah_stok: number;
+  lokasi_penyimpanan: string | null;
   produk: {
     nama_produk: string;
   };
@@ -198,10 +200,6 @@ export default function PengelolaOrderDetailPage({
               <span className="text-xs text-[#6E797E] block">Nama Pelanggan</span>
               <span className="font-extrabold text-[#191C1E]">{pesanan.nama_pelanggan}</span>
             </div>
-            <div>
-              <span className="text-xs text-[#6E797E] block">No. WhatsApp (Dummy)</span>
-              <span className="font-medium text-[#191C1E]">+62 812-3456-7890</span>
-            </div>
           </div>
         </div>
 
@@ -271,6 +269,51 @@ export default function PengelolaOrderDetailPage({
           </ul>
         </div>
 
+        {/* Card 3b: Catatan Stok Internal (Figma UC-10 Internal Stock Note) */}
+        <div
+          className="bg-white rounded-xl p-5 flex flex-col gap-3.5 border border-[#E2E8F0]"
+          style={{ boxShadow: "0px 4px 12px rgba(0,0,0,0.03)" }}
+        >
+          <h2 className="text-xs font-bold text-[#6E797E] uppercase tracking-wider border-b border-[#F1F5F9] pb-2">
+            Catatan Stok Internal
+          </h2>
+          <div className="flex flex-col gap-4">
+            {pesanan.detail_pesanan.map((item) => {
+              const isSufficient = item.varian.jumlah_stok >= item.jumlah;
+              const locationText = item.varian.lokasi_penyimpanan 
+                ? `di ${item.varian.lokasi_penyimpanan}` 
+                : null;
+
+              return (
+                <div key={item.id_detail} className="flex flex-col gap-1.5">
+                  <span className="text-xs font-bold text-[#3E484D]">
+                    {item.varian.produk.nama_produk} ({item.varian.nama_varian})
+                  </span>
+                  {isSufficient ? (
+                    <div className="flex items-start gap-2 text-xs font-semibold bg-emerald-50 text-emerald-800 p-3 rounded-lg border border-emerald-200">
+                      <svg className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span>
+                        Stok saat ini mencukupi (Tersedia: {item.varian.jumlah_stok} pcs {locationText || <span> — <span className="italic text-amber-700 font-bold">Lokasi belum diisi — cek dengan Pemilik</span></span>}).
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex items-start gap-2 text-xs font-semibold bg-red-50 text-red-800 p-3 rounded-lg border border-red-200">
+                      <svg className="w-4 h-4 text-red-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      <span>
+                        Stok tidak mencukupi! (Hanya tersedia: {item.varian.jumlah_stok} pcs {locationText || <span> — <span className="italic text-amber-700 font-bold">Lokasi belum diisi — cek dengan Pemilik</span></span>}).
+                      </span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Card 4: Pengiriman & Catatan */}
         <div
           className="bg-white rounded-xl p-5 flex flex-col gap-3.5 border border-[#E2E8F0]"
@@ -326,39 +369,17 @@ export default function PengelolaOrderDetailPage({
 
       {/* Bottom Action Bar (Fixed, UC-10 Catatan D) */}
       <div
-        className="fixed bottom-[66px] left-0 right-0 h-20 bg-white border-t border-[#ECEEF0] flex items-center justify-between px-6 gap-4 max-w-lg mx-auto z-10"
+        className="fixed bottom-[66px] left-0 right-0 h-20 bg-white border-t border-[#ECEEF0] flex items-center justify-center px-6 max-w-lg mx-auto z-10"
         style={{
           boxShadow: "0px -4px 12px rgba(0, 0, 0, 0.05)",
         }}
       >
-        {/* Button 1: Hubungi Pembeli (Short, white/icon) */}
-        <a
-          href="https://wa.me/6281234567890"
-          target="_blank"
-          rel="noreferrer"
-          className="h-12 w-12 flex items-center justify-center rounded-lg border border-[#BDC8CE] bg-white hover:bg-gray-50 transition-colors"
-          title="Hubungi Pelanggan"
-        >
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="#00647C"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
-          </svg>
-        </a>
-
-        {/* Button 2: Konfirmasi Pengiriman (Wide, primary) */}
+        {/* Button: Konfirmasi Pengiriman (Wide, primary, w-full) */}
         <button
           type="button"
           disabled={pesanan.status === "dikirim"}
           onClick={() => setShowConfirmKirim(true)}
-          className={`flex-1 h-12 rounded-lg flex items-center justify-center font-bold text-white transition-opacity select-none ${
+          className={`w-full h-12 rounded-lg flex items-center justify-center font-bold text-white transition-opacity select-none ${
             pesanan.status === "dikirim"
               ? "bg-gray-400 cursor-not-allowed"
               : "bg-[#00647C] hover:opacity-95 cursor-pointer"

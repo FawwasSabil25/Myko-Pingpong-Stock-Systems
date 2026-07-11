@@ -37,6 +37,7 @@ export async function GET(
             nama_varian,
             jumlah_stok,
             reorder_point,
+            lokasi_penyimpanan,
             produk (
               id_produk,
               nama_produk,

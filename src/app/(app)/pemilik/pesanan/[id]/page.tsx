@@ -44,7 +44,6 @@ export default function DetailPesananPemilikPage({
   const [platform, setPlatform] = useState("");
   const [noPesanan, setNoPesanan] = useState("");
   const [namaPelanggan, setNamaPelanggan] = useState("");
-  const [noWhatsApp, setNoWhatsApp] = useState("085285961325"); // dummy default
   const [items, setItems] = useState<ItemInput[]>([]);
   const [metodePengiriman, setMetodePengiriman] = useState("");
   const [metodeLainnya, setMetodeLainnya] = useState("");
@@ -529,20 +528,6 @@ export default function DetailPesananPemilikPage({
                 }`}
               />
               {errors.namaPelanggan && <p className="text-xs text-red-500">{errors.namaPelanggan}</p>}
-            </div>
-
-            {/* WhatsApp Pelanggan (Placeholder Dummy) */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-semibold text-[#3E484D]">
-                No. WhatsApp Pelanggan
-              </label>
-              <input
-                type="text"
-                value={noWhatsApp}
-                onChange={(e) => setNoWhatsApp(e.target.value)}
-                placeholder="Contoh: 0852xxxxxxxx"
-                className="w-full h-12 px-4 bg-white border border-[#BDC8CE] rounded-lg outline-none focus:border-[#00647C]"
-              />
             </div>
           </section>
 
