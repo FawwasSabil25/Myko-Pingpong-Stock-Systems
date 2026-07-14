@@ -78,6 +78,7 @@ export default function RekapHubPage() {
 
   // Sum total unit terjual in last 30 days
   const totalTerjual = penjualanList.reduce((sum, item) => sum + (item.jumlah || 0), 0);
+  const totalPendapatan = penjualanList.reduce((sum, item) => sum + (item.total_pendapatan || 0), 0);
 
   // Format tanggal singkat
   function formatTanggal(isoString: string) {
@@ -149,6 +150,9 @@ export default function RekapHubPage() {
                   </span>
                   <span className="text-[34px] font-black leading-[44px] text-[#191C1E] mt-1">
                     {totalTerjual} <span className="text-base font-semibold text-[#6E797E]">pcs</span>
+                  </span>
+                  <span className="text-sm font-semibold text-[#3E484D] mt-1">
+                    Total Pendapatan: <span className="text-[#00647C] font-bold">Rp {totalPendapatan.toLocaleString("id-ID")}</span>
                   </span>
                   <span className="text-xs font-medium text-green-600 mt-1 flex items-center gap-1">
                     <svg

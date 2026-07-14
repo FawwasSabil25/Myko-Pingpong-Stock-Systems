@@ -91,9 +91,9 @@ export async function PATCH(
       items, // array of { id_varian, jumlah }
     } = body;
 
-    if (!platform || !nama_pelanggan || !metode_pengiriman || !items || !Array.isArray(items) || items.length === 0) {
+    if (!platform || !metode_pengiriman || !items || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json(
-        { error: "Parameter platform, nama_pelanggan, metode_pengiriman, dan items wajib diisi." },
+        { error: "Parameter platform, metode_pengiriman, dan items wajib diisi." },
         { status: 400 }
       );
     }
@@ -127,7 +127,7 @@ export async function PATCH(
       .update({
         platform: platform.trim(),
         no_pesanan: no_pesanan ? no_pesanan.trim() : null,
-        nama_pelanggan: nama_pelanggan.trim(),
+        nama_pelanggan: nama_pelanggan && nama_pelanggan.trim() !== "" ? nama_pelanggan.trim() : null,
         metode_pengiriman: metode_pengiriman.trim(),
         catatan: catatan ? catatan.trim() : null,
         resi_url: resi_url !== undefined ? resi_url : undefined, // only update if provided

@@ -625,7 +625,7 @@ export default function BerandaPage() {
                               {order.no_pesanan || `#ORD-${order.id_pesanan.slice(0, 8).toUpperCase()}`}
                             </span>
                             <h3 className="text-lg font-semibold text-[#191C1E] mt-1.5 leading-6">
-                              {order.nama_pelanggan}
+                              {order.nama_pelanggan || "(Tanpa nama)"}
                             </h3>
                           </div>
                           {/* Baru Badge */}

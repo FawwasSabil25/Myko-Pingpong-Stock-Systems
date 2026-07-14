@@ -255,7 +255,7 @@ export default function PemilikPesananPage() {
                               {pesanan.no_pesanan || `#ORD-${pesanan.id_pesanan.slice(0, 8).toUpperCase()}`}
                             </span>
                             <h3 className="text-lg font-semibold text-[#191C1E] mt-1.5 leading-6">
-                              {pesanan.nama_pelanggan}
+                              {pesanan.nama_pelanggan || "(Tanpa nama)"}
                             </h3>
                           </div>
 

@@ -169,7 +169,6 @@ export default function DetailPesananPemilikPage({
     const newErrors: Record<string, string> = {};
 
     if (!platform) newErrors.platform = "Platform wajib dipilih.";
-    if (!namaPelanggan.trim()) newErrors.namaPelanggan = "Nama pelanggan wajib diisi.";
     if (!metodePengiriman) newErrors.metodePengiriman = "Metode pengiriman wajib dipilih.";
     if (metodePengiriman === "Lainnya" && !metodeLainnya.trim()) {
       newErrors.metodeLainnya = "Metode pengiriman lainnya wajib diisi.";
@@ -224,7 +223,7 @@ export default function DetailPesananPemilikPage({
       const payload = {
         platform,
         no_pesanan: noPesanan.trim() || null,
-        nama_pelanggan: namaPelanggan.trim(),
+        nama_pelanggan: namaPelanggan.trim() !== "" ? namaPelanggan.trim() : null,
         metode_pengiriman:
           metodePengiriman === "Lainnya" ? metodeLainnya.trim() : metodePengiriman,
         catatan: catatan.trim() || null,
@@ -509,7 +508,7 @@ export default function DetailPesananPemilikPage({
             {/* Nama Pelanggan */}
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-semibold text-[#3E484D]">
-                Nama Lengkap <span className="text-red-500">*</span>
+                Nama Lengkap (Opsional)
               </label>
               <input
                 type="text"
@@ -522,12 +521,9 @@ export default function DetailPesananPemilikPage({
                     setErrors(errs);
                   }
                 }}
-                placeholder="Contoh: Budi Santoso"
-                className={`w-full h-12 px-4 bg-white border rounded-lg outline-none focus:border-[#00647C] ${
-                  errors.namaPelanggan ? "border-red-400 focus:border-red-500" : "border-[#BDC8CE]"
-                }`}
+                placeholder="Contoh: Budi Santoso (opsional)"
+                className="w-full h-12 px-4 bg-white border border-[#BDC8CE] rounded-lg outline-none focus:border-[#00647C]"
               />
-              {errors.namaPelanggan && <p className="text-xs text-red-500">{errors.namaPelanggan}</p>}
             </div>
           </section>
 

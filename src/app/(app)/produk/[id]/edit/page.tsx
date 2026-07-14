@@ -535,96 +535,87 @@ export default function EditProdukPage() {
                         )}
                       </div>
 
-                      {/* Stok Saat Ini — stepper (UC-04) */}
-                      <div className="flex flex-col gap-1.5">
-                        <label
-                          className="text-sm font-semibold leading-5"
-                          style={{ color: "#3E484D" }}
-                        >
-                          Stok Saat Ini
-                        </label>
-                        <div className="flex items-center gap-3">
-                          <button
-                            type="button"
-                            onClick={() => decrementStok(index)}
-                            disabled={v.jumlah_stok <= 0}
-                            className="w-10 h-10 rounded-lg border border-[#BDC8CE] flex items-center justify-center text-lg font-bold transition-colors cursor-pointer hover:bg-[#F7F9FB] disabled:opacity-30 disabled:cursor-not-allowed"
+                      {/* Stok Saat Ini & Batas Minimum (Reorder Point) Layout Grid (UX 2) */}
+                      <div className="grid grid-cols-2 gap-4">
+                        {/* Stok Saat Ini stepper */}
+                        <div className="flex flex-col gap-1.5">
+                          <label
+                            className="text-sm font-semibold leading-5"
                             style={{ color: "#3E484D" }}
                           >
-                            −
-                          </button>
+                            Stok Saat Ini
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => decrementStok(index)}
+                              disabled={v.jumlah_stok <= 0}
+                              className="w-8 h-8 rounded border border-[#BDC8CE] flex items-center justify-center font-bold text-sm hover:bg-gray-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
+                              style={{ color: "#3E484D" }}
+                            >
+                              −
+                            </button>
+                            <input
+                              type="number"
+                              min="0"
+                              value={v.jumlah_stok}
+                              onChange={(e) => {
+                                const val = parseInt(e.target.value, 10);
+                                updateVarianField(
+                                  index,
+                                  "jumlah_stok",
+                                  isNaN(val) ? 0 : Math.max(0, val)
+                                );
+                              }}
+                              className="w-16 h-8 text-center text-sm font-semibold bg-white border border-[#BDC8CE] rounded outline-none focus:border-[#00647C] tabular-nums"
+                              style={{ color: "#191C1E" }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => incrementStok(index)}
+                              className="w-8 h-8 rounded border border-[#BDC8CE] flex items-center justify-center font-bold text-sm hover:bg-gray-200 transition-colors shrink-0"
+                              style={{ color: "#3E484D" }}
+                            >
+                              +
+                            </button>
+                            <span className="text-xs text-[#6E797E] shrink-0">pcs</span>
+                          </div>
+                          {errors[`varian_${index}_stok`] && (
+                            <p className="text-xs text-red-500 font-semibold">{errors[`varian_${index}_stok`]}</p>
+                          )}
+                        </div>
+
+                        {/* Batas Minimum / Reorder Point */}
+                        <div className="flex flex-col gap-1.5">
+                          <label
+                            className="text-sm font-semibold leading-5"
+                            style={{ color: "#3E484D" }}
+                          >
+                            Batas Minimum (Reorder Point)
+                          </label>
                           <input
                             type="number"
                             min="0"
-                            value={v.jumlah_stok}
+                            value={v.reorder_point}
                             onChange={(e) => {
                               const val = parseInt(e.target.value, 10);
                               updateVarianField(
                                 index,
-                                "jumlah_stok",
+                                "reorder_point",
                                 isNaN(val) ? 0 : Math.max(0, val)
                               );
                             }}
-                            className="w-20 h-10 text-center text-base font-semibold bg-white border border-[#BDC8CE] rounded-lg outline-none focus:border-[#00647C] focus:ring-1 focus:ring-[#00647C]/30 tabular-nums"
-                            style={{ color: "#191C1E" }}
+                            placeholder="5"
+                            className={`w-full h-8 px-3 text-sm bg-white border rounded outline-none transition-colors placeholder:text-[#6B7280] ${
+                              errors[`varian_${index}_rop`]
+                                ? "border-red-400 focus:border-red-500"
+                                : "border-[#BDC8CE] focus:border-[#00647C]"
+                            }`}
                           />
-                          <button
-                            type="button"
-                            onClick={() => incrementStok(index)}
-                            className="w-10 h-10 rounded-lg border border-[#BDC8CE] flex items-center justify-center text-lg font-bold transition-colors cursor-pointer hover:bg-[#F7F9FB]"
-                            style={{ color: "#3E484D" }}
-                          >
-                            +
-                          </button>
-                          <span
-                            className="text-sm"
-                            style={{ color: "#6E797E" }}
-                          >
-                            pcs
-                          </span>
+                          {errors[`varian_${index}_rop`] && (
+                            <p className="text-xs text-red-500 font-semibold">{errors[`varian_${index}_rop`]}</p>
+                          )}
                         </div>
-                        {errors[`varian_${index}_stok`] && (
-                          <p className="text-sm text-red-500">
-                            {errors[`varian_${index}_stok`]}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Batas Minimum / Reorder Point (UC-07) */}
-                      <div className="flex flex-col gap-1.5">
-                        <label
-                          className="text-sm font-semibold leading-5"
-                          style={{ color: "#3E484D" }}
-                        >
-                          Batas Minimum (Reorder Point)
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          value={v.reorder_point}
-                          onChange={(e) => {
-                            const val = parseInt(e.target.value, 10);
-                            updateVarianField(
-                              index,
-                              "reorder_point",
-                              isNaN(val) ? 0 : Math.max(0, val)
-                            );
-                          }}
-                          placeholder="0"
-                          className={`w-full h-12 px-4 text-base bg-white border rounded-lg outline-none transition-colors placeholder:text-[#6B7280] ${
-                            errors[`varian_${index}_rop`]
-                              ? "border-red-400 focus:border-red-500"
-                              : "border-[#BDC8CE] focus:border-[#00647C] focus:ring-1 focus:ring-[#00647C]/30"
-                          }`}
-                        />
-                        {errors[`varian_${index}_rop`] && (
-                          <p className="text-sm text-red-500">
-                            {errors[`varian_${index}_rop`]}
-                          </p>
-                        )}
-                        <p className="text-xs" style={{ color: "#6E797E" }}>
-                          Notifikasi akan dikirim jika stok ≤ batas ini
-                        </p>
                       </div>
 
                       {/* Lokasi Barang Disimpan */}

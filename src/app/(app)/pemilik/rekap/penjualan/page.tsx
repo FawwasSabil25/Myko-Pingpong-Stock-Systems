@@ -86,32 +86,47 @@ export default function RekapPenjualanPage() {
     <div className="flex flex-col min-h-screen bg-[#F8FAFC]">
       {/* Header */}
       <header
-        className="flex items-center gap-3 px-6 bg-white border-b border-[#F1F5F9] shrink-0"
+        className="flex items-center justify-between px-6 bg-white border-b border-[#F1F5F9] shrink-0"
         style={{
           height: "64px",
           boxShadow: "0px 1px 2px rgba(0, 0, 0, 0.05)",
         }}
       >
-        <Link
-          href="/pemilik/rekap"
-          className="p-2 -ml-2 rounded-full hover:bg-gray-100 transition-colors"
-        >
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="#00647C"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+        <div className="flex items-center gap-3">
+          <Link
+            href="/pemilik/rekap"
+            className="p-2 -ml-2 rounded-full hover:bg-gray-100 transition-colors"
           >
-            <path d="m15 18-6-6 6-6" />
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#00647C"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="m15 18-6-6 6-6" />
+            </svg>
+          </Link>
+          <h1 className="text-lg font-bold leading-6" style={{ color: "#00647C" }}>
+            Rekap Penjualan
+          </h1>
+        </div>
+
+        {/* Cetak PDF Button (UX 6) */}
+        <button
+          onClick={() => alert("Fitur akan datang: Cetak PDF Rekap Penjualan")}
+          className="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-[#BDC8CE] hover:bg-slate-50 transition-colors text-xs font-semibold text-[#3E484D] cursor-pointer"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M6 9V2h12v7" />
+            <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+            <rect x="6" y="14" width="12" height="8" />
           </svg>
-        </Link>
-        <h1 className="text-lg font-bold leading-6" style={{ color: "#00647C" }}>
-          Rekap Penjualan
-        </h1>
+          Cetak PDF
+        </button>
       </header>
 
       {/* Main Container */}

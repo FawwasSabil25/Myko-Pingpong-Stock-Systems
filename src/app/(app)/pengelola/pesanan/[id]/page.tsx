@@ -198,7 +198,7 @@ export default function PengelolaOrderDetailPage({
           <div className="flex flex-col gap-3 text-sm">
             <div>
               <span className="text-xs text-[#6E797E] block">Nama Pelanggan</span>
-              <span className="font-extrabold text-[#191C1E]">{pesanan.nama_pelanggan}</span>
+              <span className="font-extrabold text-[#191C1E]">{pesanan.nama_pelanggan || "(Tanpa nama)"}</span>
             </div>
           </div>
         </div>
@@ -231,11 +231,10 @@ export default function PengelolaOrderDetailPage({
             <div>
               <span className="text-xs text-[#6E797E] block">Status</span>
               <span
-                className={`inline-block text-xs font-bold px-2 py-0.5 rounded-full uppercase mt-0.5 ${
-                  pesanan.status === "baru"
+                className={`inline-block text-xs font-bold px-2 py-0.5 rounded-full uppercase mt-0.5 ${pesanan.status === "baru"
                     ? "bg-amber-50 text-amber-700 border border-amber-200"
                     : "bg-green-50 text-green-700 border border-green-200"
-                }`}
+                  }`}
               >
                 {pesanan.status}
               </span>
@@ -280,8 +279,8 @@ export default function PengelolaOrderDetailPage({
           <div className="flex flex-col gap-4">
             {pesanan.detail_pesanan.map((item) => {
               const isSufficient = item.varian.jumlah_stok >= item.jumlah;
-              const locationText = item.varian.lokasi_penyimpanan 
-                ? `di ${item.varian.lokasi_penyimpanan}` 
+              const locationText = item.varian.lokasi_penyimpanan
+                ? `di ${item.varian.lokasi_penyimpanan}`
                 : null;
 
               return (
@@ -295,7 +294,7 @@ export default function PengelolaOrderDetailPage({
                         <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                       <span>
-                        Stok saat ini mencukupi (Tersedia: {item.varian.jumlah_stok} pcs {locationText || <span> — <span className="italic text-amber-700 font-bold">Lokasi belum diisi — cek dengan Pemilik</span></span>}).
+                        Stok saat ini mencukupi ({locationText || <span> — <span className="italic text-amber-700 font-bold">Lokasi belum diisi — cek dengan Pemilik</span></span>}).
                       </span>
                     </div>
                   ) : (
@@ -379,11 +378,10 @@ export default function PengelolaOrderDetailPage({
           type="button"
           disabled={pesanan.status === "dikirim"}
           onClick={() => setShowConfirmKirim(true)}
-          className={`w-full h-12 rounded-lg flex items-center justify-center font-bold text-white transition-opacity select-none ${
-            pesanan.status === "dikirim"
+          className={`w-full h-12 rounded-lg flex items-center justify-center font-bold text-white transition-opacity select-none ${pesanan.status === "dikirim"
               ? "bg-gray-400 cursor-not-allowed"
               : "bg-[#00647C] hover:opacity-95 cursor-pointer"
-          }`}
+            }`}
         >
           {pesanan.status === "dikirim" ? "Sudah Dikirim" : "Konfirmasi Pengiriman"}
         </button>

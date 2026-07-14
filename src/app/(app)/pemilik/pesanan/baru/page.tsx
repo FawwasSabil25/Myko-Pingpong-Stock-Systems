@@ -48,6 +48,14 @@ export default function InputPesananBaruPage() {
   const [jumlah, setJumlah] = useState(1);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
+  // Autocomplete/Combobox States (UX 3)
+  const [productSearch, setProductSearch] = useState("");
+  const [showProductDropdown, setShowProductDropdown] = useState(false);
+  const [varianSearch, setVarianSearch] = useState("");
+  const [showVarianDropdown, setShowVarianDropdown] = useState(false);
+
+  // filtered lists are defined below activeVariants to avoid reference errors
+
   // Order items state
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
 
@@ -91,6 +99,14 @@ export default function InputPesananBaruPage() {
   const activeVariants = activeProduct ? activeProduct.varian : [];
   const activeVarian = activeVariants.find((v) => v.id_varian === selectedVarianId);
 
+  const filteredProducts = produkList.filter((p) =>
+    p.nama_produk.toLowerCase().includes(productSearch.toLowerCase())
+  );
+
+  const filteredVariants = activeVariants.filter((v) =>
+    v.nama_varian.toLowerCase().includes(varianSearch.toLowerCase())
+  );
+
   // Handle adding item to order list
   function handleAddItem() {
     if (!selectedProductId || !selectedVarianId) {
@@ -130,6 +146,7 @@ export default function InputPesananBaruPage() {
     // Reset input
     setJumlah(1);
     setSelectedVarianId("");
+    setVarianSearch("");
     setFormError(null);
     setStockErrors([]); // Clear any previous validations when adding items
   }
@@ -160,14 +177,10 @@ export default function InputPesananBaruPage() {
   // Submit Order (Validate fields and Stock levels)
   async function handleSubmitOrder(notify: boolean) {
     setShouldNotify(notify);
-    
+
     // 1. Validasi field wajib (Business Rule #10)
     if (!platform) {
       setFormError("Platform/Sumber pesanan wajib diisi.");
-      return;
-    }
-    if (!namaPelanggan.trim()) {
-      setFormError("Nama pelanggan wajib diisi.");
       return;
     }
     if (!metodePengiriman) {
@@ -247,7 +260,7 @@ export default function InputPesananBaruPage() {
           resi_url: resiUrl,
           platform: platform,
           no_pesanan: noPesanan.trim() !== "" ? noPesanan.trim() : null,
-          nama_pelanggan: namaPelanggan.trim(),
+          nama_pelanggan: namaPelanggan.trim() !== "" ? namaPelanggan.trim() : null,
           metode_pengiriman: shippingValue,
           catatan: catatan.trim() !== "" ? catatan.trim() : null,
           kirim_notifikasi: shouldNotify,
@@ -266,8 +279,7 @@ export default function InputPesananBaruPage() {
           .join("\n");
 
         console.log(
-          `[WA STUB] kirim ke Pengelola:\n📦 *Pesanan Baru Masuk*\n\nAda pesanan yang perlu dikemas:\n${detailsText}\n\nPelanggan: ${namaPelanggan.trim()}\nPlatform: ${platform}\nPengiriman: ${shippingValue}${
-            resiUrl ? `\n\n[Lampiran Resi PDF]: ${resiUrl}` : ""
+          `[WA STUB] kirim ke Pengelola:\n📦 *Pesanan Baru Masuk*\n\nAda pesanan yang perlu dikemas:\n${detailsText}\n\nPelanggan: ${namaPelanggan.trim() !== "" ? namaPelanggan.trim() : "-"}\nPlatform: ${platform}\nPengiriman: ${shippingValue}${resiUrl ? `\n\n[Lampiran Resi PDF]: ${resiUrl}` : ""
           }\n\nSilakan buka aplikasi untuk melihat detail pesanan.`
         );
       }
@@ -326,7 +338,7 @@ export default function InputPesananBaruPage() {
 
       {/* Main Content Form */}
       <div className="flex-1 px-6 py-6 flex flex-col gap-6 max-w-lg mx-auto w-full pb-[120px]">
-        
+
         {/* Card 1: Informasi Pesanan (Baru) */}
         <div
           className="bg-white rounded-xl p-5 flex flex-col gap-4 border border-[#E2E8F0]"
@@ -375,11 +387,11 @@ export default function InputPesananBaruPage() {
           {/* Nama Pelanggan */}
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-bold text-[#6E797E] uppercase">
-              Nama Pelanggan <span className="text-red-500">*</span>
+              Nama Pelanggan (Opsional)
             </label>
             <input
               type="text"
-              placeholder="Masukkan nama pelanggan"
+              placeholder="Masukkan nama pelanggan (opsional)"
               value={namaPelanggan}
               onChange={(e) => {
                 setNamaPelanggan(e.target.value);
@@ -462,50 +474,113 @@ export default function InputPesananBaruPage() {
             </div>
           ) : (
             <>
-              {/* Product selection */}
-              <div className="flex flex-col gap-1.5">
+              {/* Product selection (UX 3 Autocomplete) */}
+              <div className="flex flex-col gap-1.5 relative">
                 <label className="text-xs font-bold text-[#6E797E] uppercase">
                   Pilih Produk
                 </label>
-                <select
-                  value={selectedProductId}
-                  onChange={(e) => {
-                    setSelectedProductId(e.target.value);
-                    setSelectedVarianId("");
-                    setFormError(null);
-                  }}
-                  className="w-full h-11 px-3 border border-[#BDC8CE] rounded bg-white text-sm focus:outline-none focus:border-[#00647C]"
-                >
-                  <option value="">-- Pilih Produk --</option>
-                  {produkList.map((p) => (
-                    <option key={p.id_produk} value={p.id_produk}>
-                      {p.nama_produk}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Cari nama produk..."
+                    value={productSearch}
+                    onChange={(e) => {
+                      setProductSearch(e.target.value);
+                      setShowProductDropdown(true);
+                      if (selectedProductId) {
+                        setSelectedProductId("");
+                        setSelectedVarianId("");
+                        setVarianSearch("");
+                      }
+                    }}
+                    onFocus={() => setShowProductDropdown(true)}
+                    onBlur={() => {
+                      setTimeout(() => {
+                        setShowProductDropdown(false);
+                        const selected = produkList.find((p) => p.id_produk === selectedProductId);
+                        if (selected) {
+                          setProductSearch(selected.nama_produk);
+                        } else {
+                          setProductSearch("");
+                        }
+                      }, 200);
+                    }}
+                    className="w-full h-11 px-3 border border-[#BDC8CE] rounded bg-white text-sm focus:outline-none focus:border-[#00647C]"
+                  />
+                  {showProductDropdown && filteredProducts.length > 0 && (
+                    <ul className="absolute left-0 right-0 top-full mt-1 bg-white border border-[#BDC8CE] rounded-lg shadow-lg max-h-48 overflow-y-auto z-50 py-1">
+                      {filteredProducts.map((p) => (
+                        <li
+                          key={p.id_produk}
+                          onMouseDown={() => {
+                            setSelectedProductId(p.id_produk);
+                            setProductSearch(p.nama_produk);
+                            setSelectedVarianId("");
+                            setVarianSearch("");
+                            setShowProductDropdown(false);
+                            setFormError(null);
+                          }}
+                          className="px-3 py-2.5 hover:bg-[#F2F4F7] cursor-pointer text-xs text-[#191C1E] transition-colors"
+                        >
+                          {p.nama_produk}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
               </div>
 
-              {/* Variant selection */}
-              <div className="flex flex-col gap-1.5">
+              {/* Variant selection (UX 3 Autocomplete) */}
+              <div className="flex flex-col gap-1.5 relative">
                 <label className="text-xs font-bold text-[#6E797E] uppercase">
                   Pilih Varian
                 </label>
-                <select
-                  value={selectedVarianId}
-                  disabled={!selectedProductId}
-                  onChange={(e) => {
-                    setSelectedVarianId(e.target.value);
-                    setFormError(null);
-                  }}
-                  className="w-full h-11 px-3 border border-[#BDC8CE] rounded bg-white text-sm focus:outline-none focus:border-[#00647C] disabled:bg-gray-50 disabled:text-gray-400"
-                >
-                  <option value="">-- Pilih Varian --</option>
-                  {activeVariants.map((v) => (
-                    <option key={v.id_varian} value={v.id_varian}>
-                      {v.nama_varian} (Stok: {v.jumlah_stok} pcs)
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder={selectedProductId ? "Cari nama varian..." : "Pilih produk terlebih dahulu"}
+                    value={varianSearch}
+                    disabled={!selectedProductId}
+                    onChange={(e) => {
+                      setVarianSearch(e.target.value);
+                      setShowVarianDropdown(true);
+                      if (selectedVarianId) {
+                        setSelectedVarianId("");
+                      }
+                    }}
+                    onFocus={() => setShowVarianDropdown(true)}
+                    onBlur={() => {
+                      setTimeout(() => {
+                        setShowVarianDropdown(false);
+                        const selected = activeVariants.find((v) => v.id_varian === selectedVarianId);
+                        if (selected) {
+                          setVarianSearch(`${selected.nama_varian} (Stok: ${selected.jumlah_stok} pcs)`);
+                        } else {
+                          setVarianSearch("");
+                        }
+                      }, 200);
+                    }}
+                    className="w-full h-11 px-3 border border-[#BDC8CE] rounded bg-white text-sm focus:outline-none focus:border-[#00647C] disabled:bg-gray-50 disabled:text-gray-400"
+                  />
+                  {showVarianDropdown && selectedProductId && filteredVariants.length > 0 && (
+                    <ul className="absolute left-0 right-0 top-full mt-1 bg-white border border-[#BDC8CE] rounded-lg shadow-lg max-h-48 overflow-y-auto z-50 py-1">
+                      {filteredVariants.map((v) => (
+                        <li
+                          key={v.id_varian}
+                          onMouseDown={() => {
+                            setSelectedVarianId(v.id_varian);
+                            setVarianSearch(`${v.nama_varian} (Stok: ${v.jumlah_stok} pcs)`);
+                            setShowVarianDropdown(false);
+                            setFormError(null);
+                          }}
+                          className="px-3 py-2.5 hover:bg-[#F2F4F7] cursor-pointer text-xs text-[#191C1E] transition-colors"
+                        >
+                          {v.nama_varian} (Stok: {v.jumlah_stok} pcs)
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
               </div>
 
               {/* Quantity */}
@@ -577,11 +652,10 @@ export default function InputPesananBaruPage() {
                 return (
                   <li
                     key={item.id_varian}
-                    className={`flex items-start justify-between p-3 rounded-lg border transition-all ${
-                      isInsufficient
+                    className={`flex items-start justify-between p-3 rounded-lg border transition-all ${isInsufficient
                         ? "bg-red-50/50 border-red-200"
                         : "bg-[#F8FAFC] border-[#E2E8F0]"
-                    }`}
+                      }`}
                   >
                     <div className="flex flex-col min-w-0 pr-2">
                       <span className="text-sm font-bold text-[#191C1E] truncate">
@@ -591,9 +665,8 @@ export default function InputPesananBaruPage() {
                         Varian: {item.nama_varian}
                       </span>
                       <span
-                        className={`text-[11px] font-semibold mt-1 ${
-                          isInsufficient ? "text-red-600" : "text-[#6E797E]"
-                        }`}
+                        className={`text-[11px] font-semibold mt-1 ${isInsufficient ? "text-red-600" : "text-[#6E797E]"
+                          }`}
                       >
                         Stok Tersedia: {item.jumlah_stok} pcs
                       </span>
@@ -654,7 +727,7 @@ export default function InputPesananBaruPage() {
 
           <div className="flex flex-col gap-2">
             <p className="text-xs text-[#6E797E]">
-              Unggah resi pengiriman berformat PDF. Fitur ini <strong>opsional</strong>.
+              Unggah resi pengiriman berformat PDF.
             </p>
             <input
               type="file"
@@ -801,11 +874,10 @@ export default function InputPesananBaruPage() {
         onClose={() => setShowConfirm(false)}
         onConfirm={handleConfirmSave}
         title="Simpan Pesanan"
-        message={`Apakah Anda yakin ingin memasukkan pesanan ini ke dalam sistem? ${
-          shouldNotify
+        message={`Apakah Anda yakin ingin memasukkan pesanan ini ke dalam sistem? ${shouldNotify
             ? "Tindakan ini akan mencatat pesanan baru dan mengirimkan log WhatsApp stub ke Pengelola."
             : "Tindakan ini akan mencatat pesanan baru TANPA mengirimkan notifikasi WhatsApp."
-        }`}
+          }`}
         confirmLabel="Ya, Simpan"
         cancelLabel="Batal"
         loading={isSaving}
@@ -816,11 +888,10 @@ export default function InputPesananBaruPage() {
         open={showSuccess}
         onClose={handleSuccessClose}
         title="Pesanan Ditambahkan!"
-        message={`Pesanan baru berhasil disimpan ke database. ${
-          shouldNotify
+        message={`Pesanan baru berhasil disimpan ke database. ${shouldNotify
             ? "Notifikasi WhatsApp stub telah dicatat ke console log pengelola."
             : "Tidak ada notifikasi WhatsApp yang dikirimkan."
-        }`}
+          }`}
         buttonLabel="Kembali ke Daftar Pesanan"
       />
     </div>
