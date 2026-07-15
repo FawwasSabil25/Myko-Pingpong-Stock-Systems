@@ -203,6 +203,7 @@ export async function POST(request: NextRequest) {
         varian (
           id_varian,
           nama_varian,
+          lokasi_penyimpanan,
           produk (
             nama_produk
           )
@@ -228,6 +229,7 @@ export async function POST(request: NextRequest) {
           namaProduk: d.varian.produk.nama_produk,
           namaVarian: d.varian.nama_varian,
           jumlah: d.jumlah,
+          lokasiPenyimpanan: d.varian.lokasi_penyimpanan,
         }));
 
         const message = templatePesananBaru({

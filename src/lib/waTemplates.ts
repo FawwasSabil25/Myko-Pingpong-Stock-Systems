@@ -7,6 +7,7 @@ interface ItemPesanan {
   namaProduk: string;
   namaVarian: string;
   jumlah: number;
+  lokasiPenyimpanan?: string | null;
 }
 
 /**
@@ -15,16 +16,13 @@ interface ItemPesanan {
 export function templateStokMenipis(params: {
   namaProduk: string;
   namaVarian: string;
-  jumlahStok: number;
+  jumlahStok?: number;
   reorderPoint: number;
 }): string {
-  return `⚠️ *Peringatan Stok Menipis*
-
+  return `⚠️ Peringatan Stok Menipis
 Produk: ${params.namaProduk} - ${params.namaVarian}
-Stok saat ini: ${params.jumlahStok}
-Batas Reorder Point: ${params.reorderPoint}
-
-Segera lakukan Restok agar stok tidak habis.`;
+Batas Minimal stok: ${params.reorderPoint}
+Segera lakukan Restok agar stok tidak habis`;
 }
 
 /**
@@ -37,21 +35,23 @@ export function templatePesananBaru(params: {
   metodePengiriman: string;
 }): string {
   const daftar = params.items
-    .map((item) => `- ${item.namaProduk} (${item.namaVarian}) x${item.jumlah}`)
+    .map((item) => {
+      const lokasi = item.lokasiPenyimpanan && item.lokasiPenyimpanan.trim()
+        ? item.lokasiPenyimpanan.trim()
+        : "(lokasi belum diisi)";
+      return `- ${item.namaProduk} (${item.namaVarian}) x${item.jumlah} (di ${lokasi})`;
+    })
     .join("\n");
 
-  const nama = params.namaPelanggan ? params.namaPelanggan.trim() : "-";
+  const nama = params.namaPelanggan && params.namaPelanggan.trim() ? params.namaPelanggan.trim() : "-";
 
-  return `📦 *Pesanan Baru Masuk*
-
+  return `📦 Pesanan Baru Masuk
 Ada pesanan yang perlu dikemas:
 ${daftar}
-
 Pelanggan: ${nama}
 Platform: ${params.platform}
 Pengiriman: ${params.metodePengiriman}
-
-Silakan buka aplikasi untuk melihat detail pesanan.`;
+Silakan buka aplikasi untuk melihat detail pesanan`;
 }
 
 /**
