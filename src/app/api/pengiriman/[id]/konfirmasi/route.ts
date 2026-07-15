@@ -51,6 +51,7 @@ export async function POST(
           id_varian,
           nama_varian,
           jumlah_stok,
+          reorder_point,
           produk (
             nama_produk
           )
