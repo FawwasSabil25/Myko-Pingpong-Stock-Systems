@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { kirimPesanWA } from "@/lib/fonnte";
+import { templatePesananBaru } from "@/lib/waTemplates";
 
 /**
  * GET /api/pesanan
@@ -220,18 +222,39 @@ export async function POST(request: NextRequest) {
 
     // 5. Panggil Notifikasi ke Pengelola (UC-09) jika kirim_notifikasi === true
     if (kirim_notifikasi === true) {
-      // Format list barang untuk notifikasi
-      const orderItemsText = detailData
-        .map((d: any) => `- ${d.varian.produk.nama_produk} (${d.varian.nama_varian}) x${d.jumlah}`)
-        .join("\n");
+      const recipient = process.env.WA_NOMOR_PENGELOLA;
+      if (recipient) {
+        const templateItems = detailData.map((d: any) => ({
+          namaProduk: d.varian.produk.nama_produk,
+          namaVarian: d.varian.nama_varian,
+          jumlah: d.jumlah,
+        }));
 
-      const stubMessage = `📦 *Pesanan Baru Masuk*\n\nAda pesanan yang perlu dikemas:\n${orderItemsText}\n\nPelanggan: ${nama_pelanggan && nama_pelanggan.trim() !== "" ? nama_pelanggan.trim() : "-"}\nPlatform: ${platform.trim()}\nPengiriman: ${metode_pengiriman.trim()}\n\nSilakan buka aplikasi untuk melihat detail pesanan.${
-        resi_url ? `\n\n[Lampiran Resi PDF]: ${resi_url}` : ""
-      }`;
+        const message = templatePesananBaru({
+          items: templateItems,
+          namaPelanggan: nama_pelanggan,
+          platform,
+          metodePengiriman: metode_pengiriman,
+        });
 
-      console.log("[WA STUB] kirim ke Pengelola:", stubMessage);
+        // Fire-and-forget sending so it does not block the API response
+        kirimPesanWA({
+          target: recipient,
+          message,
+          fileUrl: resi_url || undefined,
+          filename: resi_url ? "label_pengiriman.pdf" : undefined,
+        })
+          .then((res) => {
+            console.log("[WA Delivery Result to Pengelola]:", res);
+          })
+          .catch((err) => {
+            console.error("Fonnte WA delivery error in background:", err);
+          });
+      } else {
+        console.error("WA_NOMOR_PENGELOLA is missing in environment variables.");
+      }
     } else {
-      console.log("[WA STUB SKIP] Pesanan disimpan tanpa kirim notifikasi WA.");
+      console.log("[WA SKIP] Pesanan disimpan tanpa kirim notifikasi WA.");
     }
 
     return NextResponse.json({

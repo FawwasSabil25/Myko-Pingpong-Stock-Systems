@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { kirimPesanWA } from "@/lib/fonnte";
+import { templateStokMenipis } from "@/lib/waTemplates";
 
 interface VarianBody {
   id_varian?: string;
@@ -122,11 +124,27 @@ export async function PATCH(
           // Business Rule #7: Cek Reorder Point
           if (newStok !== oldStok || v.reorder_point !== oldVarian.reorder_point) {
             if (v.reorder_point > 0 && newStok <= v.reorder_point) {
-              console.log(
-                `[STUB UC-06] Notifikasi Stok Menipis — Varian "${v.nama_varian}" (${v.id_varian}): ` +
-                `stok=${newStok}, reorder_point=${v.reorder_point}. ` +
-                `Akan kirim WA ke Pemilik di Tahap 2.`
-              );
+              const recipient = process.env.WA_NOMOR_PEMILIK;
+              if (recipient) {
+                const message = templateStokMenipis({
+                  namaProduk: nama_produk.trim(),
+                  namaVarian: v.nama_varian.trim(),
+                  jumlahStok: newStok,
+                  reorderPoint: v.reorder_point,
+                });
+                kirimPesanWA({
+                  target: recipient,
+                  message,
+                })
+                  .then((res) => {
+                    console.log(`[WA ROP Notice to Pemilik] Varian "${v.nama_varian}":`, res);
+                  })
+                  .catch((err) => {
+                    console.error("Fonnte WA delivery error in background (ROP Check):", err);
+                  });
+              } else {
+                console.error("WA_NOMOR_PEMILIK is missing in environment variables.");
+              }
             }
           }
         } else if (!v._deleted) {
@@ -166,11 +184,27 @@ export async function PATCH(
 
           // Business Rule #7: Cek Reorder Point untuk varian baru
           if (v.reorder_point > 0 && v.jumlah_stok <= v.reorder_point) {
-            console.log(
-              `[STUB UC-06] Notifikasi Stok Menipis — Varian Baru "${v.nama_varian}" (${newVarian.id_varian}): ` +
-              `stok=${v.jumlah_stok}, reorder_point=${v.reorder_point}. ` +
-              `Akan kirim WA ke Pemilik di Tahap 2.`
-            );
+            const recipient = process.env.WA_NOMOR_PEMILIK;
+            if (recipient) {
+              const message = templateStokMenipis({
+                namaProduk: nama_produk.trim(),
+                namaVarian: v.nama_varian.trim(),
+                jumlahStok: v.jumlah_stok,
+                reorderPoint: v.reorder_point,
+              });
+              kirimPesanWA({
+                target: recipient,
+                message,
+              })
+                .then((res) => {
+                  console.log(`[WA ROP Notice to Pemilik] Varian Baru "${v.nama_varian}":`, res);
+                })
+                .catch((err) => {
+                  console.error("Fonnte WA delivery error in background (New Varian ROP Check):", err);
+                });
+            } else {
+              console.error("WA_NOMOR_PEMILIK is missing in environment variables.");
+            }
           }
         }
       }

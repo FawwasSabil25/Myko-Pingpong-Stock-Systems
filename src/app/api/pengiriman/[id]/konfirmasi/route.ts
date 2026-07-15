@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { kirimPesanWA } from "@/lib/fonnte";
+import { templateStokMenipis, templatePengirimanSelesai } from "@/lib/waTemplates";
 
 /**
  * POST /api/pengiriman/[id]/konfirmasi
@@ -108,6 +110,30 @@ export async function POST(
         );
       }
 
+      // Business Rule #7: Cek Reorder Point setelah stok dikurangi
+      if (v.reorder_point > 0 && newStock <= v.reorder_point) {
+        const recipient = process.env.WA_NOMOR_PEMILIK;
+        if (recipient) {
+          const prod = Array.isArray(v.produk) ? v.produk[0] : v.produk;
+          const message = templateStokMenipis({
+            namaProduk: prod?.nama_produk || "Produk",
+            namaVarian: v.nama_varian,
+            jumlahStok: newStock,
+            reorderPoint: v.reorder_point,
+          });
+          kirimPesanWA({
+            target: recipient,
+            message,
+          })
+            .then((res) => {
+              console.log(`[WA ROP Notice to Pemilik (Pengiriman)] Varian "${v.nama_varian}":`, res);
+            })
+            .catch((err) => {
+              console.error("Fonnte WA delivery error in background (ROP Check):", err);
+            });
+        }
+      }
+
       // b. Catat histori pergerakan stok keluar
       const { error: insertHistoryError } = await supabase
         .from("histori_stok")
@@ -153,31 +179,34 @@ export async function POST(
       );
     }
 
-    // 5. Log stub notifikasi WhatsApp ke Pemilik (UC-12)
-    const itemsText = details
-      .map((detail) => {
+    // 5. Kirim notifikasi WhatsApp ke Pemilik (UC-12)
+    const recipient = process.env.WA_NOMOR_PEMILIK;
+    if (recipient) {
+      const templateItems = details.map((detail) => {
         const v: any = detail.varian;
         const prod = Array.isArray(v.produk) ? v.produk[0] : v.produk;
-        return `- ${prod?.nama_produk || "Produk"} (${v.nama_varian}) x${detail.jumlah}`;
+        return {
+          namaProduk: prod?.nama_produk || "Produk",
+          namaVarian: v.nama_varian,
+          jumlah: detail.jumlah,
+        };
+      });
+
+      const message = templatePengirimanSelesai(templateItems);
+
+      kirimPesanWA({
+        target: recipient,
+        message,
       })
-      .join("\n");
-
-    const ownerNotificationMessage = `🔔 *Notifikasi Pengiriman Pesanan*
-
-Pesanan berikut telah dikemas dan diserahkan ke kurir oleh Pengelola:
-- Pelanggan: ${pesanan.nama_pelanggan}
-- Platform: ${pesanan.platform}
-- No. Pesanan: ${pesanan.no_pesanan || "-"}
-- Pengiriman: ${pesanan.metode_pengiriman}
-
-Daftar Item:
-${itemsText}${
-      pesanan.resi_url ? `\n\n[Lampiran Resi PDF]: ${pesanan.resi_url}` : ""
+        .then((res) => {
+          console.log("[WA Delivery Result to Pemilik (Pengiriman Selesai)]:", res);
+        })
+        .catch((err) => {
+          console.error("Fonnte WA delivery error in background (Pengiriman Selesai):", err);
+        });
+    } else {
+      console.error("WA_NOMOR_PEMILIK is missing in environment variables.");
     }
-
-Status pesanan kini diubah menjadi 'dikirim'.`;
-
-    console.log("[WA STUB] kirim ke Pemilik:", ownerNotificationMessage);
 
     return NextResponse.json({
       success: true,

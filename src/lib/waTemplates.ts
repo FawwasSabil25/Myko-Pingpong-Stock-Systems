@@ -30,15 +30,26 @@ Segera lakukan Restok agar stok tidak habis.`;
 /**
  * Notifikasi Pesanan Baru (ke Pengelola — UC-09)
  */
-export function templatePesananBaru(items: ItemPesanan[]): string {
-  const daftar = items
+export function templatePesananBaru(params: {
+  items: ItemPesanan[];
+  namaPelanggan?: string | null;
+  platform: string;
+  metodePengiriman: string;
+}): string {
+  const daftar = params.items
     .map((item) => `- ${item.namaProduk} (${item.namaVarian}) x${item.jumlah}`)
     .join("\n");
+
+  const nama = params.namaPelanggan ? params.namaPelanggan.trim() : "-";
 
   return `📦 *Pesanan Baru Masuk*
 
 Ada pesanan yang perlu dikemas:
 ${daftar}
+
+Pelanggan: ${nama}
+Platform: ${params.platform}
+Pengiriman: ${params.metodePengiriman}
 
 Silakan buka aplikasi untuk melihat detail pesanan.`;
 }
