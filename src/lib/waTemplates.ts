@@ -33,6 +33,7 @@ export function templatePesananBaru(params: {
   namaPelanggan?: string | null;
   platform: string;
   metodePengiriman: string;
+  resiUrl?: string | null;
 }): string {
   const daftar = params.items
     .map((item) => {
@@ -44,13 +45,14 @@ export function templatePesananBaru(params: {
     .join("\n");
 
   const nama = params.namaPelanggan && params.namaPelanggan.trim() ? params.namaPelanggan.trim() : "-";
+  const resiLine = params.resiUrl ? `\nResi: ${params.resiUrl}` : "";
 
   return `📦 Pesanan Baru Masuk
 Ada pesanan yang perlu dikemas:
 ${daftar}
 Pelanggan: ${nama}
 Platform: ${params.platform}
-Pengiriman: ${params.metodePengiriman}
+Pengiriman: ${params.metodePengiriman}${resiLine}
 Silakan buka aplikasi untuk melihat detail pesanan`;
 }
 

@@ -237,6 +237,7 @@ export async function POST(request: NextRequest) {
           namaPelanggan: nama_pelanggan,
           platform,
           metodePengiriman: metode_pengiriman,
+          resiUrl: resi_url,
         });
 
         // Fire-and-forget sending so it does not block the API response
