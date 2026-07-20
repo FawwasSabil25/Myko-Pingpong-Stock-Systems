@@ -272,18 +272,6 @@ export default function InputPesananBaruPage() {
         throw new Error(errData.error || "Gagal menyimpan data pesanan.");
       }
 
-      // 3. Notifikasi Fonnte STUB / console.log ke Pengelola (UC-09)
-      if (shouldNotify) {
-        const detailsText = orderItems
-          .map((item) => `- ${item.nama_produk} (${item.nama_varian}) x${item.jumlah}`)
-          .join("\n");
-
-        console.log(
-          `[WA STUB] kirim ke Pengelola:\n📦 *Pesanan Baru Masuk*\n\nAda pesanan yang perlu dikemas:\n${detailsText}\n\nPelanggan: ${namaPelanggan.trim() !== "" ? namaPelanggan.trim() : "-"}\nPlatform: ${platform}\nPengiriman: ${shippingValue}${resiUrl ? `\n\n[Lampiran Resi PDF]: ${resiUrl}` : ""
-          }\n\nSilakan buka aplikasi untuk melihat detail pesanan.`
-        );
-      }
-
       // Simpan berhasil, tampilkan success dialog
       setShowConfirm(false);
       setShowSuccess(true);
