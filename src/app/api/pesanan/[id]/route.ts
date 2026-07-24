@@ -98,6 +98,24 @@ export async function PATCH(
       );
     }
 
+    // 0. Cek status pesanan — hanya boleh diubah jika masih 'baru'
+    const { data: orderCheck, error: checkError } = await supabase
+      .from("pesanan")
+      .select("status")
+      .eq("id_pesanan", id)
+      .single();
+
+    if (checkError || !orderCheck) {
+      return NextResponse.json({ error: "Pesanan tidak ditemukan." }, { status: 404 });
+    }
+
+    if (orderCheck.status !== "baru") {
+      return NextResponse.json(
+        { error: "Pesanan yang sudah dikirim tidak dapat diubah." },
+        { status: 403 }
+      );
+    }
+
     // 1. Validasi stok untuk varian baru/updated
     for (const item of items) {
       const { data: varData, error: varError } = await supabase
@@ -184,3 +202,74 @@ export async function PATCH(
     );
   }
 }
+
+/**
+ * DELETE /api/pesanan/[id]
+ *
+ * Menghapus pesanan beserta seluruh detail_pesanan terkait (UC-03c).
+ * Hanya boleh dilakukan jika status pesanan masih 'baru'.
+ * Tidak ada logic rollback stok karena pesanan 'baru' belum pernah mengurangi stok.
+ */
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+
+    // 1. Cek status pesanan — hanya boleh dihapus jika masih 'baru'
+    const { data: orderCheck, error: checkError } = await supabase
+      .from("pesanan")
+      .select("status")
+      .eq("id_pesanan", id)
+      .single();
+
+    if (checkError || !orderCheck) {
+      return NextResponse.json({ error: "Pesanan tidak ditemukan." }, { status: 404 });
+    }
+
+    if (orderCheck.status !== "baru") {
+      return NextResponse.json(
+        { error: "Pesanan yang sudah dikirim tidak dapat dihapus." },
+        { status: 403 }
+      );
+    }
+
+    // 2. Hapus detail_pesanan terlebih dahulu (foreign key)
+    const { error: detailDeleteError } = await supabase
+      .from("detail_pesanan")
+      .delete()
+      .eq("id_pesanan", id);
+
+    if (detailDeleteError) {
+      console.error("[DELETE /api/pesanan/[id]] Error deleting detail_pesanan:", detailDeleteError);
+      return NextResponse.json(
+        { error: "Gagal menghapus detail pesanan.", detail: detailDeleteError.message },
+        { status: 500 }
+      );
+    }
+
+    // 3. Hapus pesanan
+    const { error: orderDeleteError } = await supabase
+      .from("pesanan")
+      .delete()
+      .eq("id_pesanan", id);
+
+    if (orderDeleteError) {
+      console.error("[DELETE /api/pesanan/[id]] Error deleting pesanan:", orderDeleteError);
+      return NextResponse.json(
+        { error: "Gagal menghapus pesanan.", detail: orderDeleteError.message },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ success: true, message: "Pesanan berhasil dihapus." });
+  } catch (error: any) {
+    console.error("[DELETE /api/pesanan/[id]] Internal server error:", error);
+    return NextResponse.json(
+      { error: "Terjadi kesalahan internal server.", detail: error.message },
+      { status: 500 }
+    );
+  }
+}
+

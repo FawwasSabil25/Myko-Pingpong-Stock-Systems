@@ -51,10 +51,19 @@ export default function DetailPesananPemilikPage({
   const [currentResiUrl, setCurrentResiUrl] = useState<string | null>(null);
   const [resiFile, setResiFile] = useState<File | null>(null);
 
+  // Order status for locking
+  const [orderStatus, setOrderStatus] = useState<string>("baru");
+  const isLocked = orderStatus === "dikirim";
+
   // Modal & Validation states
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showConfirm, setShowConfirm] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+
+  // Delete states (UC-03c)
+  const [deleting, setDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showDeleteSuccess, setShowDeleteSuccess] = useState(false);
 
   useEffect(() => {
     // Pastikan hanya Pemilik yang bisa mengakses halaman ini
@@ -87,6 +96,7 @@ export default function DetailPesananPemilikPage({
       }
       const order = await res.json();
 
+      setOrderStatus(order.status || "baru");
       setPlatform(order.platform || "");
       setNoPesanan(order.no_pesanan || "");
       setNamaPelanggan(order.nama_pelanggan || "");
@@ -256,10 +266,36 @@ export default function DetailPesananPemilikPage({
     }
   }
 
+  // Delete handler (UC-03c)
+  function handleDelete() {
+    setShowDeleteConfirm(true);
+  }
+
+  async function handleConfirmDelete() {
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/pesanan/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "Gagal menghapus pesanan.");
+      }
+      setDeleting(false);
+      setShowDeleteConfirm(false);
+      setShowDeleteSuccess(true);
+    } catch (err: any) {
+      console.error("Error deleting order:", err);
+      setDeleting(false);
+      setShowDeleteConfirm(false);
+      setErrors({ submit: err.message || "Terjadi kesalahan saat menghapus." });
+    }
+  }
+
+  const pageTitle = isLocked ? "Detail Pesanan" : "Ubah Pesanan";
+
   if (loading) {
     return (
       <div className="flex flex-col min-h-screen bg-[#F7F9FB]">
-        <TopAppBar title="Ubah Pesanan" backHref="/pemilik/pesanan" />
+        <TopAppBar title={pageTitle} backHref="/pemilik/pesanan" />
         <div className="flex-1 flex items-center justify-center">
           <div className="w-8 h-8 border-3 border-primary/30 border-t-primary rounded-full animate-spin" />
         </div>
@@ -286,7 +322,7 @@ export default function DetailPesananPemilikPage({
 
   return (
     <div className="flex flex-col min-h-screen bg-white">
-      <TopAppBar title="Ubah Pesanan" backHref="/pemilik/pesanan" />
+      <TopAppBar title={pageTitle} backHref="/pemilik/pesanan" />
 
       {/* Main content scrollable container */}
       <div className="flex-1 px-6 py-6 pb-[180px]">
@@ -298,13 +334,15 @@ export default function DetailPesananPemilikPage({
             </span>
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-bold text-[#191C1E] leading-8">
-                Status: Pesanan Masuk
+                Status: {isLocked ? "Pesanan Dikirim" : "Pesanan Masuk"}
               </h2>
-              <span className="text-xs font-bold px-4 py-1.5 rounded-full bg-[#DAE2FD] text-[#5C647A]">
-                Menunggu Konfirmasi
+              <span className={`text-xs font-bold px-4 py-1.5 rounded-full ${isLocked ? "bg-green-100 text-green-700" : "bg-[#DAE2FD] text-[#5C647A]"}`}>
+                {isLocked ? "Sudah Dikirim" : "Menunggu Konfirmasi"}
               </span>
             </div>
           </section>
+
+          <fieldset disabled={isLocked} className="contents">
 
           {/* Section 2: Informasi Dasar & Platform */}
           <section className="flex flex-col gap-4 bg-white p-5 border border-[#F2F4F6] rounded-2xl shadow-sm">
@@ -680,6 +718,7 @@ export default function DetailPesananPemilikPage({
               {errors.submit}
             </div>
           )}
+          </fieldset>
         </div>
       </div>
 
@@ -688,28 +727,46 @@ export default function DetailPesananPemilikPage({
         className="fixed bottom-[66px] left-0 right-0 z-30 px-6 py-4 bg-white border-t border-[#ECEEF0] flex flex-col gap-3 max-w-lg mx-auto w-full"
         style={{ boxShadow: "0px -4px 12px rgba(0,0,0,0.03)" }}
       >
-        <div className="flex flex-col gap-2">
-          {/* Button Simpan Perubahan */}
-          <button
-            type="button"
-            onClick={handleSimpan}
-            className="w-full h-12 bg-[#00647C] text-white font-semibold text-sm rounded-lg cursor-pointer transition-opacity hover:opacity-90 flex items-center justify-center gap-1 shadow-sm"
-          >
-            Simpan Perubahan
-          </button>
+        {isLocked ? (
+          /* Pesanan sudah dikirim — tampilkan info terkunci */
+          <div className="flex items-center justify-center gap-2 py-3 bg-amber-50 border border-amber-200 rounded-lg">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <span className="text-sm font-semibold text-amber-700">Pesanan sudah dikirim — tidak dapat diubah atau dihapus</span>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {/* Button Simpan Perubahan */}
+            <button
+              type="button"
+              onClick={handleSimpan}
+              className="w-full h-12 bg-[#00647C] text-white font-semibold text-sm rounded-lg cursor-pointer transition-opacity hover:opacity-90 flex items-center justify-center gap-1 shadow-sm"
+            >
+              Simpan Perubahan
+            </button>
 
-          {/* Button Batal */}
-          <button
-            type="button"
-            onClick={() => router.push("/pemilik/pesanan")}
-            className="w-full h-12 border border-[#6E797E] text-[#191C1E] font-semibold text-sm rounded-lg cursor-pointer transition-colors hover:bg-gray-50 flex items-center justify-center"
-          >
-            Batal
-          </button>
-        </div>
+            {/* Button Hapus Pesanan (UC-03c) */}
+            <button
+              type="button"
+              onClick={handleDelete}
+              className="w-full h-12 bg-red-600 text-white font-semibold text-sm rounded-lg cursor-pointer transition-opacity hover:opacity-90 flex items-center justify-center gap-2"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+              Hapus Pesanan
+            </button>
+
+            {/* Button Batal */}
+            <button
+              type="button"
+              onClick={() => router.push("/pemilik/pesanan")}
+              className="w-full h-12 border border-[#6E797E] text-[#191C1E] font-semibold text-sm rounded-lg cursor-pointer transition-colors hover:bg-gray-50 flex items-center justify-center"
+            >
+              Batal
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Confirm Dialog */}
+      {/* Confirm Dialog (Edit) */}
       <ConfirmDialog
         open={showConfirm}
         onClose={() => setShowConfirm(false)}
@@ -721,12 +778,34 @@ export default function DetailPesananPemilikPage({
         loading={saving}
       />
 
-      {/* Success Dialog */}
+      {/* Confirm Dialog (Delete - UC-03c) */}
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleConfirmDelete}
+        title="Hapus Pesanan?"
+        message="Apakah Anda yakin ingin menghapus Pesanan ini? Tindakan ini tidak dapat dibatalkan."
+        confirmLabel="Ya, Hapus"
+        cancelLabel="Batal"
+        variant="danger"
+        loading={deleting}
+      />
+
+      {/* Success Dialog (Edit) */}
       <SuccessDialog
         open={showSuccess}
         onClose={() => router.push("/pemilik/pesanan")}
         title="Pesanan Berhasil Diperbarui!"
         message="Perubahan informasi pesanan telah disimpan ke sistem."
+        buttonLabel="Kembali ke Daftar Pesanan"
+      />
+
+      {/* Success Dialog (Delete - UC-03c) */}
+      <SuccessDialog
+        open={showDeleteSuccess}
+        onClose={() => router.push("/pemilik/pesanan")}
+        title="Pesanan Berhasil Dihapus!"
+        message="Data pesanan dan seluruh item terkait telah dihapus dari sistem."
         buttonLabel="Kembali ke Daftar Pesanan"
       />
     </div>
