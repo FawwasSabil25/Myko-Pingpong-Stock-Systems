@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { type Role, setRole, setWhatsApp } from "@/lib/role";
+import { type Role, setRole } from "@/lib/role";
+import { setPengaturan } from "@/lib/supabase";
 
 function PhoneIcon({ className }: { className?: string }) {
   return (
@@ -92,7 +93,7 @@ export default function SetupPage() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  function handleSubmit() {
+  async function handleSubmit() {
     // Validate role
     if (!selectedRole) {
       setError("Silakan pilih peran terlebih dahulu.");
@@ -109,9 +110,18 @@ export default function SetupPage() {
     setError(null);
     setSubmitting(true);
 
-    // Save to localStorage via role.ts helpers
+    // Save role to localStorage (client-side only)
     setRole(selectedRole);
-    setWhatsApp(nomorWA.trim());
+
+    // Save WhatsApp number to Supabase pengaturan table
+    const key = selectedRole === "pemilik" ? "pemilik_whatsapp" : "pengelola_whatsapp";
+    try {
+      await setPengaturan(key, nomorWA.trim());
+    } catch {
+      setError("Gagal menyimpan nomor WhatsApp. Silakan coba lagi.");
+      setSubmitting(false);
+      return;
+    }
 
     // Redirect to beranda
     router.replace("/beranda");

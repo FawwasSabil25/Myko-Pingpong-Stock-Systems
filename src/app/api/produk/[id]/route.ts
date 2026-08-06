@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabase, getPengaturan } from "@/lib/supabase";
 import { kirimPesanWA } from "@/lib/fonnte";
 import { templateStokMenipis } from "@/lib/waTemplates";
 
@@ -59,6 +59,8 @@ export async function PATCH(
 
     // 2. Proses varian
     if (Array.isArray(varian)) {
+      // Ambil nomor WA Pemilik sekali untuk digunakan di seluruh loop
+      const pemilikWa = await getPengaturan("pemilik_whatsapp");
       for (const v of varian as VarianBody[]) {
         if (v._deleted && v.id_varian) {
           // A. Hapus varian
@@ -124,8 +126,7 @@ export async function PATCH(
           // Business Rule #7: Cek Reorder Point
           if (newStok !== oldStok || v.reorder_point !== oldVarian.reorder_point) {
             if (v.reorder_point > 0 && newStok <= v.reorder_point) {
-              const recipient = process.env.WA_NOMOR_PEMILIK;
-              if (recipient) {
+              if (pemilikWa) {
                 const message = templateStokMenipis({
                   namaProduk: nama_produk.trim(),
                   namaVarian: v.nama_varian.trim(),
@@ -133,7 +134,7 @@ export async function PATCH(
                   reorderPoint: v.reorder_point,
                 });
                 kirimPesanWA({
-                  target: recipient,
+                  target: pemilikWa,
                   message,
                 })
                   .then((res) => {
@@ -143,7 +144,7 @@ export async function PATCH(
                     console.error("Fonnte WA delivery error in background (ROP Check):", err);
                   });
               } else {
-                console.error("WA_NOMOR_PEMILIK is missing in environment variables.");
+                console.warn("Nomor WhatsApp Pemilik belum diatur di tabel pengaturan.");
               }
             }
           }
@@ -184,8 +185,7 @@ export async function PATCH(
 
           // Business Rule #7: Cek Reorder Point untuk varian baru
           if (v.reorder_point > 0 && v.jumlah_stok <= v.reorder_point) {
-            const recipient = process.env.WA_NOMOR_PEMILIK;
-            if (recipient) {
+            if (pemilikWa) {
               const message = templateStokMenipis({
                 namaProduk: nama_produk.trim(),
                 namaVarian: v.nama_varian.trim(),
@@ -193,7 +193,7 @@ export async function PATCH(
                 reorderPoint: v.reorder_point,
               });
               kirimPesanWA({
-                target: recipient,
+                target: pemilikWa,
                 message,
               })
                 .then((res) => {
@@ -203,7 +203,7 @@ export async function PATCH(
                   console.error("Fonnte WA delivery error in background (New Varian ROP Check):", err);
                 });
             } else {
-              console.error("WA_NOMOR_PEMILIK is missing in environment variables.");
+              console.warn("Nomor WhatsApp Pemilik belum diatur di tabel pengaturan.");
             }
           }
         }

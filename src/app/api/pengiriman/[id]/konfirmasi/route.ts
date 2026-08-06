@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabase, getPengaturan } from "@/lib/supabase";
 import { kirimPesanWA } from "@/lib/fonnte";
 import { templateStokMenipis, templatePengirimanSelesai } from "@/lib/waTemplates";
 
@@ -90,6 +90,8 @@ export async function POST(
     }
 
     // 4. Jalankan 3 operasi sequential (Business Rule #5)
+    // Ambil nomor WA Pemilik sekali untuk digunakan di seluruh loop
+    const pemilikWa = await getPengaturan("pemilik_whatsapp");
     for (const detail of details) {
       const v: any = detail.varian;
 
@@ -113,8 +115,7 @@ export async function POST(
 
       // Business Rule #7: Cek Reorder Point setelah stok dikurangi
       if (v.reorder_point > 0 && newStock <= v.reorder_point) {
-        const recipient = process.env.WA_NOMOR_PEMILIK;
-        if (recipient) {
+        if (pemilikWa) {
           const prod = Array.isArray(v.produk) ? v.produk[0] : v.produk;
           const message = templateStokMenipis({
             namaProduk: prod?.nama_produk || "Produk",
@@ -123,7 +124,7 @@ export async function POST(
             reorderPoint: v.reorder_point,
           });
           kirimPesanWA({
-            target: recipient,
+            target: pemilikWa,
             message,
           })
             .then((res) => {
@@ -181,8 +182,7 @@ export async function POST(
     }
 
     // 5. Kirim notifikasi WhatsApp ke Pemilik (UC-12)
-    const recipient = process.env.WA_NOMOR_PEMILIK;
-    if (recipient) {
+    if (pemilikWa) {
       const templateItems = details.map((detail) => {
         const v: any = detail.varian;
         const prod = Array.isArray(v.produk) ? v.produk[0] : v.produk;
@@ -196,7 +196,7 @@ export async function POST(
       const message = templatePengirimanSelesai(templateItems);
 
       kirimPesanWA({
-        target: recipient,
+        target: pemilikWa,
         message,
       })
         .then((res) => {
@@ -206,7 +206,7 @@ export async function POST(
           console.error("Fonnte WA delivery error in background (Pengiriman Selesai):", err);
         });
     } else {
-      console.error("WA_NOMOR_PEMILIK is missing in environment variables.");
+      console.warn("Nomor WhatsApp Pemilik belum diatur di tabel pengaturan.");
     }
 
     return NextResponse.json({

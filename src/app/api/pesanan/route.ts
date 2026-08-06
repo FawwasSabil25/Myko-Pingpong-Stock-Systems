@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabase, getPengaturan } from "@/lib/supabase";
 import { kirimPesanWA } from "@/lib/fonnte";
 import { templatePesananBaru } from "@/lib/waTemplates";
 
@@ -223,7 +223,7 @@ export async function POST(request: NextRequest) {
 
     // 5. Panggil Notifikasi ke Pengelola (UC-09) jika kirim_notifikasi === true
     if (kirim_notifikasi === true) {
-      const recipient = process.env.WA_NOMOR_PENGELOLA;
+      const recipient = await getPengaturan("pengelola_whatsapp");
       if (recipient) {
         const templateItems = detailData.map((d: any) => ({
           namaProduk: d.varian.produk.nama_produk,
@@ -254,7 +254,7 @@ export async function POST(request: NextRequest) {
             console.error("Fonnte WA delivery error in background:", err);
           });
       } else {
-        console.error("WA_NOMOR_PENGELOLA is missing in environment variables.");
+        console.warn("Nomor WhatsApp Pengelola belum diatur di tabel pengaturan.");
       }
     } else {
       console.log("[WA SKIP] Pesanan disimpan tanpa kirim notifikasi WA.");

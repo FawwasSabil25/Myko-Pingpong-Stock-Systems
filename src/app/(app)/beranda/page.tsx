@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { supabase } from "@/lib/supabase";
-import { getRole, getWhatsApp, clearAll, type Role } from "@/lib/role";
+import { supabase, getPengaturan } from "@/lib/supabase";
+import { getRole, clearAll, type Role } from "@/lib/role";
 
 interface VarianSummary {
   id_varian: string;
@@ -70,7 +70,8 @@ export default function BerandaPage() {
       return;
     }
     setRoleState(r);
-    setWa(getWhatsApp());
+    const waKey = r === "pemilik" ? "pemilik_whatsapp" : "pengelola_whatsapp";
+    getPengaturan(waKey).then((val) => setWa(val));
     fetchDashboardData(r);
   }, [router]);
 
