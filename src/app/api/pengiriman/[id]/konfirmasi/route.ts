@@ -124,16 +124,15 @@ export async function POST(
             jumlahStok: newStock,
             reorderPoint: v.reorder_point,
           });
-          kirimPesanWA({
-            target: pemilikWa,
-            message,
-          })
-            .then((res) => {
-              console.log(`[WA ROP Notice to Pemilik (Pengiriman)] Varian "${v.nama_varian}":`, res);
-            })
-            .catch((err) => {
-              console.error("Fonnte WA delivery error in background (ROP Check):", err);
+          try {
+            const res = await kirimPesanWA({
+              target: pemilikWa,
+              message,
             });
+            console.log(`[WA ROP Notice to Pemilik (Pengiriman)] Varian "${v.nama_varian}":`, res);
+          } catch (err) {
+            console.error("Fonnte WA delivery error (ROP Check):", err);
+          }
         }
       }
 
@@ -182,6 +181,8 @@ export async function POST(
       );
     }
 
+    let waResult: any = null;
+
     // 5. Kirim notifikasi WhatsApp ke Pemilik (UC-12)
     if (pemilikWa) {
       const templateItems = details.map((detail) => {
@@ -197,23 +198,26 @@ export async function POST(
       const message = templatePengirimanSelesai(templateItems);
 
       console.log("[UC-12] Mengirim notifikasi pengiriman selesai ke Pemilik:", pemilikWa);
-      kirimPesanWA({
-        target: pemilikWa,
-        message,
-      })
-        .then((res) => {
-          console.log("[WA Delivery Result to Pemilik (Pengiriman Selesai)]:", res);
-        })
-        .catch((err) => {
-          console.error("Fonnte WA delivery error in background (Pengiriman Selesai):", err);
+      // Await pengiriman agar aman di Vercel (Serverless), dibungkus try/catch agar tidak membatalkan transaksi utama
+      try {
+        waResult = await kirimPesanWA({
+          target: pemilikWa,
+          message,
         });
+        console.log("[WA Delivery Result to Pemilik (Pengiriman Selesai)]:", waResult);
+      } catch (err) {
+        console.error("Fonnte WA delivery error (Pengiriman Selesai):", err);
+        waResult = { success: false, message: String(err) };
+      }
     } else {
       console.warn("Nomor WhatsApp Pemilik belum diatur di tabel pengaturan.");
+      waResult = { success: false, message: "Nomor WhatsApp Pemilik belum diatur" };
     }
 
     return NextResponse.json({
       success: true,
       message: "Konfirmasi pengiriman berhasil diproses.",
+      wa_notif: waResult, // Memberi tahu status pengiriman notifikasi ke frontend
     });
   } catch (error: any) {
     console.error("[POST /api/pengiriman/[id]/konfirmasi] Internal server error:", error);

@@ -4,25 +4,10 @@
  */
 
 interface SendWAParams {
-  target: string; // Nomor tujuan, format 628xxxxxxxxxx
+  target: string; // Nomor tujuan, format 08xxxxxxxxxx (sesuai dokumentasi Fonnte)
   message: string;
   fileUrl?: string; // URL publik file (untuk lampiran, mis. resi PDF)
   filename?: string; // Nama file lampiran (opsional)
-}
-
-/**
- * Normalisasi nomor telepon ke format 62xxxxxxxxxx (tanpa + atau 0 di depan).
- * Defense-in-depth: memastikan nomor selalu dalam format yang benar
- * meskipun data di database belum dinormalisasi.
- */
-function normalizeTarget(target: string): string {
-  let digits = target.trim().replace(/\D/g, ""); // Hapus semua non-digit
-  if (digits.startsWith("0")) {
-    digits = "62" + digits.slice(1); // 08xxx → 628xxx
-  } else if (!digits.startsWith("62")) {
-    digits = "62" + digits; // fallback safety
-  }
-  return digits;
 }
 
 export async function kirimPesanWA(params: SendWAParams): Promise<{
@@ -35,16 +20,12 @@ export async function kirimPesanWA(params: SendWAParams): Promise<{
     return { success: false, message: "FONNTE_API_TOKEN tidak tersedia" };
   }
 
-  // Normalisasi nomor tujuan (defense-in-depth)
-  const normalizedTarget = normalizeTarget(params.target);
-
   // Log payload sebelum request (message ditruncate untuk keamanan log)
   const messagePreview = params.message.length > 80
     ? params.message.substring(0, 80) + "..."
     : params.message;
   console.log("[Fonnte] 📤 Mengirim WA:", {
-    target_raw: params.target,
-    target_normalized: normalizedTarget,
+    target: params.target,
     message_preview: messagePreview,
     has_file: !!params.fileUrl,
     token_exists: !!FONNTE_API_TOKEN,
@@ -52,9 +33,8 @@ export async function kirimPesanWA(params: SendWAParams): Promise<{
   });
 
   const formData = new FormData();
-  formData.append("target", normalizedTarget);
+  formData.append("target", params.target);
   formData.append("message", params.message);
-  formData.append("countryCode", "62"); // default country code
 
   if (params.fileUrl) {
     formData.append("url", params.fileUrl);
@@ -84,12 +64,12 @@ export async function kirimPesanWA(params: SendWAParams): Promise<{
     const success = data.status === true;
     if (success) {
       console.log("[Fonnte] ✅ Pesan berhasil dikirim:", {
-        target: normalizedTarget,
+        target: params.target,
         response: data,
       });
     } else {
       console.warn("[Fonnte] ⚠️ Fonnte returned non-success:", {
-        target: normalizedTarget,
+        target: params.target,
         response: data,
       });
     }
@@ -100,9 +80,10 @@ export async function kirimPesanWA(params: SendWAParams): Promise<{
     };
   } catch (error) {
     console.error("[Fonnte] ❌ Exception saat kirim pesan:", {
-      target: normalizedTarget,
+      target: params.target,
       error: String(error),
     });
     return { success: false, message: String(error) };
   }
 }
+

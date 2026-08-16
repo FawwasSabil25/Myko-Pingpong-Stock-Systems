@@ -66,38 +66,17 @@ function ManagerIcon({ className }: { className?: string }) {
 function validateWhatsApp(nomor: string): string | null {
   const cleaned = nomor.trim();
   if (!cleaned) return "Nomor WhatsApp wajib diisi.";
-  if (!/^[\d+]+$/.test(cleaned))
-    return "Nomor hanya boleh berisi angka (dan + di depan).";
-  if (
-    !cleaned.startsWith("08") &&
-    !cleaned.startsWith("+62") &&
-    !cleaned.startsWith("62")
-  )
-    return "Nomor harus diawali 08, +62, atau 62.";
+  if (!/^\d+$/.test(cleaned))
+    return "Nomor hanya boleh berisi angka (tanpa + atau spasi).";
+  if (!cleaned.startsWith("08"))
+    return "Nomor harus diawali 08 (contoh: 081234567890).";
 
-  // Remove prefix to count digits
-  let digits = cleaned.replace(/\D/g, "");
-  if (digits.startsWith("62")) digits = digits.slice(2);
-  else if (digits.startsWith("0")) digits = digits.slice(1);
-
+  // Hitung panjang digit setelah prefix 0
+  const digits = cleaned.slice(1); // hapus leading 0
   if (digits.length < 8 || digits.length > 13)
-    return "Panjang nomor tidak valid (8-13 digit setelah kode negara).";
+    return "Panjang nomor tidak valid (9-14 digit total).";
 
   return null;
-}
-
-/**
- * Normalisasi nomor WA ke format 62xxxxxxxxxx (tanpa + atau 0 di depan).
- * Fonnte API membutuhkan format ini agar pesan terkirim dengan benar.
- */
-function normalizePhoneNumber(nomor: string): string {
-  let digits = nomor.trim().replace(/\D/g, ""); // Hapus semua non-digit (termasuk +)
-  if (digits.startsWith("0")) {
-    digits = "62" + digits.slice(1); // 08xxx → 628xxx
-  } else if (!digits.startsWith("62")) {
-    digits = "62" + digits; // fallback safety
-  }
-  return digits;
 }
 
 export default function SetupPage() {
@@ -128,10 +107,10 @@ export default function SetupPage() {
     setRole(selectedRole);
 
     // Save WhatsApp number to Supabase pengaturan table
+    // Nomor disimpan apa adanya (format 08xxx) — sesuai kebutuhan Fonnte API
     const key = selectedRole === "pemilik" ? "pemilik_whatsapp" : "pengelola_whatsapp";
     try {
-      const normalizedNumber = normalizePhoneNumber(nomorWA);
-      await setPengaturan(key, normalizedNumber);
+      await setPengaturan(key, nomorWA.trim());
     } catch {
       setError("Gagal menyimpan nomor WhatsApp. Silakan coba lagi.");
       setSubmitting(false);

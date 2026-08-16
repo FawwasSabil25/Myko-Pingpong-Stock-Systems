@@ -221,6 +221,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    let waResult: any = null;
+
     // 5. Panggil Notifikasi ke Pengelola (UC-09) jika kirim_notifikasi === true
     console.log("[UC-09] kirim_notifikasi flag:", kirim_notifikasi, typeof kirim_notifikasi);
     if (kirim_notifikasi === true) {
@@ -242,24 +244,26 @@ export async function POST(request: NextRequest) {
           resiUrl: resi_url,
         });
 
-        // Fire-and-forget sending so it does not block the API response
-        kirimPesanWA({
-          target: recipient,
-          message,
-          fileUrl: resi_url || undefined,
-          filename: resi_url ? "label_pengiriman.pdf" : undefined,
-        })
-          .then((res) => {
-            console.log("[WA Delivery Result to Pengelola]:", res);
-          })
-          .catch((err) => {
-            console.error("Fonnte WA delivery error in background:", err);
+        // Await pengiriman agar aman di Vercel (Serverless), dibungkus try/catch agar tidak membatalkan transaksi utama
+        try {
+          waResult = await kirimPesanWA({
+            target: recipient,
+            message,
+            fileUrl: resi_url || undefined,
+            filename: resi_url ? "label_pengiriman.pdf" : undefined,
           });
+          console.log("[WA Delivery Result to Pengelola]:", waResult);
+        } catch (err) {
+          console.error("Fonnte WA delivery error:", err);
+          waResult = { success: false, message: String(err) };
+        }
       } else {
         console.warn("Nomor WhatsApp Pengelola belum diatur di tabel pengaturan.");
+        waResult = { success: false, message: "Nomor WhatsApp Pengelola belum diatur" };
       }
     } else {
       console.log("[WA SKIP] Pesanan disimpan tanpa kirim notifikasi WA.");
+      waResult = { success: true, message: "Pengiriman WA dilewati (kirim_notifikasi=false)" };
     }
 
     return NextResponse.json({
@@ -267,6 +271,7 @@ export async function POST(request: NextRequest) {
       message: "Pesanan berhasil ditambahkan.",
       pesanan: pesananData,
       detail: detailData,
+      wa_notif: waResult, // Memberi tahu status pengiriman notifikasi ke frontend
     });
   } catch (error: any) {
     console.error("[POST /api/pesanan] Internal server error:", error);
