@@ -79,8 +79,16 @@ export default function DetailProdukPage() {
       .eq("id_produk", id);
 
     if (error) {
-      console.error("Error deleting produk:", error);
+      // Convert error to a plain object string to bypass Turbopack console interception
+      const errString = JSON.stringify(error, Object.getOwnPropertyNames(error), 2);
+      console.error("RAW Error deleting produk:", errString);
       setDeleting(false);
+
+      if (error.code === "23503" || errString.includes("23503") || errString.includes("foreign key")) {
+        alert("Produk tidak bisa dihapus karena sudah memiliki histori stok atau pesanan yang tercatat.\n\nTips: Ubah nama/status produk alih-alih menghapusnya untuk menjaga histori data.");
+      } else {
+        alert(`Gagal menghapus produk:\n\n${errString}`);
+      }
       return;
     }
 
