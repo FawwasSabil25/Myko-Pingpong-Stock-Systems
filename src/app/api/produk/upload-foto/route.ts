@@ -33,38 +33,26 @@ export async function POST(request: NextRequest) {
         upsert: true,
       });
 
-    // If bucket does not exist, create dynamically
-    if (uploadError && (uploadError.message.includes("Bucket not found") || (uploadError as any).status === 404)) {
-      console.log("Bucket 'produk-foto' tidak ditemukan. Membuat bucket baru...");
-      const { error: createBucketError } = await supabase.storage.createBucket("produk-foto", {
-        public: true,
-        allowedMimeTypes: allowedTypes,
+    if (uploadError) {
+      console.error("[Supabase Storage] Upload error details:", {
+        message: uploadError.message,
+        name: uploadError.name,
+        // @ts-ignore
+        status: uploadError.status,
       });
-
-      if (createBucketError) {
-        console.error("Gagal membuat bucket 'produk-foto':", createBucketError);
-        return NextResponse.json(
-          { error: "Gagal membuat folder penyimpanan foto produk.", detail: createBucketError.message },
-          { status: 500 }
-        );
+      
+      // Berikan pesan error yang lebih jelas ke developer/admin
+      let errorMessage = "Gagal mengunggah foto produk.";
+      if (uploadError.message.includes("Bucket not found") || (uploadError as any).status === 404 || (uploadError as any).status === "404") {
+        errorMessage = "Bucket 'produk-foto' tidak ditemukan. Admin harus membuatnya di Supabase Dashboard.";
+      } else if (uploadError.message.includes("new row violates row-level security") || (uploadError as any).status === 403 || (uploadError as any).status === "403") {
+        errorMessage = "Akses ditolak (RLS). Pastikan Policy INSERT untuk bucket 'produk-foto' sudah disetup.";
+      } else {
+        errorMessage = `Error upload: ${uploadError.message}`;
       }
 
-      // Retry upload
-      const retryResult = await supabase.storage
-        .from("produk-foto")
-        .upload(fileName, file, {
-          contentType: file.type,
-          upsert: true,
-        });
-      
-      uploadData = retryResult.data;
-      uploadError = retryResult.error;
-    }
-
-    if (uploadError) {
-      console.error("Error uploading file to Supabase Storage:", uploadError);
       return NextResponse.json(
-        { error: "Gagal mengunggah foto produk.", detail: uploadError.message },
+        { error: errorMessage, detail: uploadError.message },
         { status: 500 }
       );
     }

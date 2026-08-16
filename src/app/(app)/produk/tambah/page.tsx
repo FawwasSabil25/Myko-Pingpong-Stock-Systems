@@ -495,7 +495,7 @@ export default function TambahProdukPage() {
                     </div>
 
                     {/* Stok Awal & Batas Minimum (Reorder Point) Layout Grid (UX 2) */}
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="flex flex-col sm:grid sm:grid-cols-2 gap-4">
                       {/* Stok Awal stepper */}
                       <div className="flex flex-col gap-1.5">
                         <label
