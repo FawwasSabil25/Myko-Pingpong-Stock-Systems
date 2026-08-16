@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
  * Melakukan validasi field wajib (Business Rule #10).
  * Melakukan validasi stok server-side (Business Rule #4).
  * Memasukkan pesanan ke tabel `pesanan` dan baris-baris ke `detail_pesanan`.
- * Kondisional: Menampilkan console.log STUB notifikasi WA ke Pengelola jika kirim_notifikasi = true.
+ * Kondisional: Mengirim notifikasi WA ke Pengelola jika kirim_notifikasi = true.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -222,8 +222,10 @@ export async function POST(request: NextRequest) {
     }
 
     // 5. Panggil Notifikasi ke Pengelola (UC-09) jika kirim_notifikasi === true
+    console.log("[UC-09] kirim_notifikasi flag:", kirim_notifikasi, typeof kirim_notifikasi);
     if (kirim_notifikasi === true) {
       const recipient = await getPengaturan("pengelola_whatsapp");
+      console.log("[UC-09] Nomor pengelola dari DB:", recipient);
       if (recipient) {
         const templateItems = detailData.map((d: any) => ({
           namaProduk: d.varian.produk.nama_produk,

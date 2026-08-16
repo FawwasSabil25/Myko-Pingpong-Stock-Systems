@@ -12,7 +12,7 @@ import { templateStokMenipis, templatePengirimanSelesai } from "@/lib/waTemplate
  * 2. Kurangi jumlah_stok pada tabel varian untuk setiap item pesanan.
  * 3. Tambahkan catatan ke histori_stok dengan jenis = 'keluar' dan id_referensi = id_pesanan.
  * 4. Update status pesanan di tabel pesanan menjadi 'dikirim'.
- * 5. Log stub notifikasi WhatsApp ke Pemilik (UC-12).
+ * 5. Kirim notifikasi WhatsApp ke Pemilik (UC-12).
  */
 export async function POST(
   request: NextRequest,
@@ -92,6 +92,7 @@ export async function POST(
     // 4. Jalankan 3 operasi sequential (Business Rule #5)
     // Ambil nomor WA Pemilik sekali untuk digunakan di seluruh loop
     const pemilikWa = await getPengaturan("pemilik_whatsapp");
+    console.log("[UC-12] Nomor pemilik dari DB:", pemilikWa);
     for (const detail of details) {
       const v: any = detail.varian;
 
@@ -195,6 +196,7 @@ export async function POST(
 
       const message = templatePengirimanSelesai(templateItems);
 
+      console.log("[UC-12] Mengirim notifikasi pengiriman selesai ke Pemilik:", pemilikWa);
       kirimPesanWA({
         target: pemilikWa,
         message,

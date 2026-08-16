@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
@@ -60,7 +60,8 @@ export default function InputPesananBaruPage() {
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
 
   // Action and Dialog states
-  const [shouldNotify, setShouldNotify] = useState(true); // Flag to control WA notification
+  const shouldNotifyRef = useRef(true); // Ref (not state) to avoid stale closure race condition
+  const [shouldNotifyDisplay, setShouldNotifyDisplay] = useState(true); // Display-only state for UI text
   const [showConfirm, setShowConfirm] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -176,7 +177,8 @@ export default function InputPesananBaruPage() {
 
   // Submit Order (Validate fields and Stock levels)
   async function handleSubmitOrder(notify: boolean) {
-    setShouldNotify(notify);
+    shouldNotifyRef.current = notify; // Immediately available via ref (no async batching)
+    setShouldNotifyDisplay(notify);   // For UI display only
 
     // 1. Validasi field wajib (Business Rule #10)
     if (!platform) {
@@ -263,7 +265,7 @@ export default function InputPesananBaruPage() {
           nama_pelanggan: namaPelanggan.trim() !== "" ? namaPelanggan.trim() : null,
           metode_pengiriman: shippingValue,
           catatan: catatan.trim() !== "" ? catatan.trim() : null,
-          kirim_notifikasi: shouldNotify,
+          kirim_notifikasi: shouldNotifyRef.current,
         }),
       });
 
@@ -862,8 +864,8 @@ export default function InputPesananBaruPage() {
         onClose={() => setShowConfirm(false)}
         onConfirm={handleConfirmSave}
         title="Simpan Pesanan"
-        message={`Apakah Anda yakin ingin memasukkan pesanan ini ke dalam sistem? ${shouldNotify
-            ? "Tindakan ini akan mencatat pesanan baru dan mengirimkan log WhatsApp stub ke Pengelola."
+        message={`Apakah Anda yakin ingin memasukkan pesanan ini ke dalam sistem? ${shouldNotifyDisplay
+            ? "Tindakan ini akan mencatat pesanan baru dan mengirimkan notifikasi WhatsApp ke Pengelola."
             : "Tindakan ini akan mencatat pesanan baru TANPA mengirimkan notifikasi WhatsApp."
           }`}
         confirmLabel="Ya, Simpan"
@@ -876,8 +878,8 @@ export default function InputPesananBaruPage() {
         open={showSuccess}
         onClose={handleSuccessClose}
         title="Pesanan Ditambahkan!"
-        message={`Pesanan baru berhasil disimpan ke database. ${shouldNotify
-            ? "Notifikasi WhatsApp stub telah dicatat ke console log pengelola."
+        message={`Pesanan baru berhasil disimpan ke database. ${shouldNotifyDisplay
+            ? "Notifikasi WhatsApp telah dikirim ke Pengelola."
             : "Tidak ada notifikasi WhatsApp yang dikirimkan."
           }`}
         buttonLabel="Kembali ke Daftar Pesanan"

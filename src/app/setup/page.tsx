@@ -86,6 +86,20 @@ function validateWhatsApp(nomor: string): string | null {
   return null;
 }
 
+/**
+ * Normalisasi nomor WA ke format 62xxxxxxxxxx (tanpa + atau 0 di depan).
+ * Fonnte API membutuhkan format ini agar pesan terkirim dengan benar.
+ */
+function normalizePhoneNumber(nomor: string): string {
+  let digits = nomor.trim().replace(/\D/g, ""); // Hapus semua non-digit (termasuk +)
+  if (digits.startsWith("0")) {
+    digits = "62" + digits.slice(1); // 08xxx → 628xxx
+  } else if (!digits.startsWith("62")) {
+    digits = "62" + digits; // fallback safety
+  }
+  return digits;
+}
+
 export default function SetupPage() {
   const router = useRouter();
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
@@ -116,7 +130,8 @@ export default function SetupPage() {
     // Save WhatsApp number to Supabase pengaturan table
     const key = selectedRole === "pemilik" ? "pemilik_whatsapp" : "pengelola_whatsapp";
     try {
-      await setPengaturan(key, nomorWA.trim());
+      const normalizedNumber = normalizePhoneNumber(nomorWA);
+      await setPengaturan(key, normalizedNumber);
     } catch {
       setError("Gagal menyimpan nomor WhatsApp. Silakan coba lagi.");
       setSubmitting(false);
