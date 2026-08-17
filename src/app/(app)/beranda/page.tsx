@@ -708,6 +708,7 @@ export default function BerandaPage() {
           </div>
         )}
       </div>
+      </div>
     </PullToRefresh>
   );
 }
