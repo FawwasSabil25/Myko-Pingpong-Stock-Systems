@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase, getPengaturan } from "@/lib/supabase";
 import { getRole, clearAll, type Role } from "@/lib/role";
+import PullToRefresh from "@/components/PullToRefresh";
 
 interface VarianSummary {
   id_varian: string;
@@ -277,7 +278,8 @@ export default function BerandaPage() {
     : 0;
 
   return (
-    <div className="flex flex-col min-h-screen bg-white">
+    <PullToRefresh onRefresh={() => role ? fetchDashboardData(role) : Promise.resolve()}>
+      <div className="flex flex-col min-h-screen bg-white">
       {/* TopAppBar - Figma Style */}
       <header
         className="flex items-center justify-between px-6 bg-white border-b border-[#F1F5F9] shrink-0"
@@ -706,6 +708,6 @@ export default function BerandaPage() {
           </div>
         )}
       </div>
-    </div>
+    </PullToRefresh>
   );
 }

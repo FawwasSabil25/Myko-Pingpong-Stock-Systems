@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getRole } from "@/lib/role";
+import PullToRefresh from "@/components/PullToRefresh";
 
 interface Varian {
   id_varian: string;
@@ -86,7 +87,8 @@ export default function PemilikPesananPage() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-white">
+    <PullToRefresh onRefresh={fetchPesanan}>
+      <div className="flex flex-col min-h-screen bg-white">
       {/* Main Container */}
       <div className="flex-1 px-6 py-6 pb-[100px] flex flex-col gap-6 max-w-lg mx-auto w-full">
         {/* Header */}
@@ -337,6 +339,6 @@ export default function PemilikPesananPage() {
           </>
         )}
       </div>
-    </div>
+    </PullToRefresh>
   );
 }
