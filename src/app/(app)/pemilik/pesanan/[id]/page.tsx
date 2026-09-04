@@ -2,11 +2,20 @@
 
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
+import {
+  ChevronDownIcon,
+  FileUpIcon,
+  MinusIcon,
+  PlusIcon,
+  Trash2Icon,
+  MessageCircleIcon,
+} from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { getRole } from "@/lib/role";
-import TopAppBar from "@/components/TopAppBar";
+import { MobileShell } from "@/components/MobileShell";
+import { DetailHeader } from "@/components/DetailHeader";
 import { ConfirmDialog, SuccessDialog } from "@/components/Dialog";
+import { platforms, shippingMethods } from "@/lib/orderFormOptions";
 
 interface Varian {
   id_varian: string;
@@ -25,6 +34,13 @@ interface ItemInput {
   id_varian: string;
   jumlah: number;
 }
+
+const fieldClass =
+  "w-full rounded-2xl border border-brand-200 bg-white px-4 py-3 text-sm font-medium text-brand-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-700";
+
+const labelClass = "block text-xs font-bold text-brand-900";
+
+const cardClass = "space-y-4 rounded-3xl border border-brand-200 bg-white p-5 shadow-card";
 
 export default function DetailPesananPemilikPage({
   params,
@@ -46,33 +62,31 @@ export default function DetailPesananPemilikPage({
   const [namaPelanggan, setNamaPelanggan] = useState("");
   const [items, setItems] = useState<ItemInput[]>([]);
   const [metodePengiriman, setMetodePengiriman] = useState("");
-  const [metodeLainnya, setMetodeLainnya] = useState("");
   const [catatan, setCatatan] = useState("");
   const [currentResiUrl, setCurrentResiUrl] = useState<string | null>(null);
   const [resiFile, setResiFile] = useState<File | null>(null);
+  const [uploadingResi, setUploadingResi] = useState(false);
 
   // Order status for locking
   const [orderStatus, setOrderStatus] = useState<string>("baru");
-  const isLocked = orderStatus === "dikirim";
+  const isLocked = orderStatus === "dikirim" || orderStatus === "selesai";
 
   // Modal & Validation states
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showConfirm, setShowConfirm] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
-  // Delete states (UC-03c)
+  // Delete states
   const [deleting, setDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showDeleteSuccess, setShowDeleteSuccess] = useState(false);
 
   useEffect(() => {
-    // Pastikan hanya Pemilik yang bisa mengakses halaman ini
     const role = getRole();
     if (role !== "pemilik") {
       router.replace("/beranda");
       return;
     }
-
     initData();
   }, [router, id]);
 
@@ -81,7 +95,6 @@ export default function DetailPesananPemilikPage({
       setLoading(true);
       setError(null);
 
-      // 1. Fetch all products to populate dropdowns
       const { data: prodData, error: prodErr } = await supabase
         .from("produk")
         .select("id_produk, nama_produk, varian(id_varian, nama_varian, jumlah_stok)");
@@ -89,7 +102,6 @@ export default function DetailPesananPemilikPage({
       if (prodErr) throw prodErr;
       setProducts((prodData as any[]) || []);
 
-      // 2. Fetch current order details
       const res = await fetch(`/api/pesanan/${id}`);
       if (!res.ok) {
         throw new Error("Gagal mengambil data pesanan.");
@@ -100,25 +112,10 @@ export default function DetailPesananPemilikPage({
       setPlatform(order.platform || "");
       setNoPesanan(order.no_pesanan || "");
       setNamaPelanggan(order.nama_pelanggan || "");
+      setMetodePengiriman(order.metode_pengiriman || "");
       setCatatan(order.catatan || "");
       setCurrentResiUrl(order.resi_url || null);
 
-      // Determine shipping method dropdown values
-      const deliveryMethods = [
-        "Diserahkan ke JNE",
-        "Diserahkan ke JNT",
-        "Dijemput Kurir",
-      ];
-      if (order.metode_pengiriman) {
-        if (deliveryMethods.includes(order.metode_pengiriman)) {
-          setMetodePengiriman(order.metode_pengiriman);
-        } else {
-          setMetodePengiriman("Lainnya");
-          setMetodeLainnya(order.metode_pengiriman);
-        }
-      }
-
-      // Map detail_pesanan to state
       const mappedItems = order.detail_pesanan.map((d: any) => ({
         id_produk: d.varian.produk.id_produk,
         id_varian: d.id_varian,
@@ -151,49 +148,52 @@ export default function DetailPesananPemilikPage({
       updated[index] = { ...updated[index], [field]: value };
     }
     setItems(updated);
-
-    // Clear validation error
-    const newErrors = { ...errors };
-    delete newErrors[`item_${index}`];
-    delete newErrors[`item_${index}_qty`];
-    setErrors(newErrors);
   }
 
-  function incrementQty(index: number) {
-    updateItem(index, "jumlah", items[index].jumlah + 1);
-  }
+  async function handleResiUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setResiFile(file);
+      setUploadingResi(true);
 
-  function decrementQty(index: number) {
-    if (items[index].jumlah > 1) {
-      updateItem(index, "jumlah", items[index].jumlah - 1);
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const res = await fetch("/api/pesanan/upload-resi", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.error || "Gagal mengunggah file resi.");
+        }
+
+        const data = await res.json();
+        setCurrentResiUrl(data.publicUrl);
+      } catch (err: any) {
+        console.error("Error uploading resi:", err);
+        setErrors({ ...errors, resi: err.message || "Gagal mengunggah file resi." });
+      } finally {
+        setUploadingResi(false);
+      }
     }
-  }
-
-  function getAvailableStock(id_produk: string, id_varian: string) {
-    const p = products.find((prod) => prod.id_produk === id_produk);
-    const v = p?.varian.find((varItem) => varItem.id_varian === id_varian);
-    return v ? v.jumlah_stok : 0;
   }
 
   function validate(): boolean {
     const newErrors: Record<string, string> = {};
 
     if (!platform) newErrors.platform = "Platform wajib dipilih.";
-    if (!metodePengiriman) newErrors.metodePengiriman = "Metode pengiriman wajib dipilih.";
-    if (metodePengiriman === "Lainnya" && !metodeLainnya.trim()) {
-      newErrors.metodeLainnya = "Metode pengiriman lainnya wajib diisi.";
-    }
+    if (!namaPelanggan.trim()) newErrors.nama_pelanggan = "Nama pelanggan wajib diisi.";
+    if (!metodePengiriman) newErrors.metode_pengiriman = "Metode pengiriman wajib dipilih.";
 
     items.forEach((item, index) => {
-      if (!item.id_produk) {
-        newErrors[`item_${index}`] = "Produk wajib dipilih.";
-      } else if (!item.id_varian) {
-        newErrors[`item_${index}`] = "Varian wajib dipilih.";
-      } else {
-        const available = getAvailableStock(item.id_produk, item.id_varian);
-        if (item.jumlah > available) {
-          newErrors[`item_${index}_qty`] = `Stok tidak mencukupi (Tersedia: ${available} pcs).`;
-        }
+      if (!item.id_produk || !item.id_varian) {
+        newErrors[`item_${index}`] = "Produk & Varian wajib dipilih.";
+      }
+      if (item.jumlah <= 0) {
+        newErrors[`item_${index}_qty`] = "Jumlah item harus minimal 1.";
       }
     });
 
@@ -209,35 +209,13 @@ export default function DetailPesananPemilikPage({
   async function handleConfirmSave() {
     setSaving(true);
     try {
-      let finalResiUrl = currentResiUrl;
-
-      // 1. Upload new resi if selected
-      if (resiFile) {
-        const formData = new FormData();
-        formData.append("file", resiFile);
-
-        const uploadRes = await fetch("/api/pesanan/upload-resi", {
-          method: "POST",
-          body: formData,
-        });
-
-        if (!uploadRes.ok) {
-          throw new Error("Gagal mengunggah file resi.");
-        }
-
-        const uploadData = await uploadRes.json();
-        finalResiUrl = uploadData.url;
-      }
-
-      // 2. Perform PATCH request to save changes
       const payload = {
         platform,
         no_pesanan: noPesanan.trim() || null,
-        nama_pelanggan: namaPelanggan.trim() !== "" ? namaPelanggan.trim() : null,
-        metode_pengiriman:
-          metodePengiriman === "Lainnya" ? metodeLainnya.trim() : metodePengiriman,
+        nama_pelanggan: namaPelanggan.trim(),
+        metode_pengiriman: metodePengiriman,
         catatan: catatan.trim() || null,
-        resi_url: finalResiUrl,
+        resi_url: currentResiUrl,
         items: items.map((it) => ({
           id_varian: it.id_varian,
           jumlah: it.jumlah,
@@ -266,11 +244,6 @@ export default function DetailPesananPemilikPage({
     }
   }
 
-  // Delete handler (UC-03c)
-  function handleDelete() {
-    setShowDeleteConfirm(true);
-  }
-
   async function handleConfirmDelete() {
     setDeleting(true);
     try {
@@ -290,508 +263,322 @@ export default function DetailPesananPemilikPage({
     }
   }
 
-  const pageTitle = isLocked ? "Detail Pesanan" : "Ubah Pesanan";
-
   if (loading) {
     return (
-      <div className="flex flex-col min-h-screen bg-[#F7F9FB]">
-        <TopAppBar title={pageTitle} backHref="/pemilik/pesanan" />
-        <div className="flex-1 flex items-center justify-center">
-          <div className="w-8 h-8 border-3 border-primary/30 border-t-primary rounded-full animate-spin" />
+      <MobileShell header={<DetailHeader title="Detail Pesanan" backTo="/pemilik/pesanan" />}>
+        <div className="flex items-center justify-center py-20">
+          <div className="w-8 h-8 border-3 border-brand-500/30 border-t-brand-600 rounded-full animate-spin" />
         </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex flex-col min-h-screen bg-[#F7F9FB]">
-        <TopAppBar title="Ubah Pesanan" backHref="/pemilik/pesanan" />
-        <div className="flex-1 px-6 py-10 text-center flex flex-col gap-3 justify-center items-center">
-          <p className="text-red-500 font-bold">{error}</p>
-          <button
-            onClick={initData}
-            className="px-4 py-2 bg-[#00647C] text-white text-xs font-semibold rounded-lg"
-          >
-            Coba Lagi
-          </button>
-        </div>
-      </div>
+      </MobileShell>
     );
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-white">
-      <TopAppBar title={pageTitle} backHref="/pemilik/pesanan" />
-
-      {/* Main content scrollable container */}
-      <div className="flex-1 px-6 py-6 pb-[180px]">
-        <div className="flex flex-col gap-6 max-w-lg mx-auto w-full">
-          {/* Section 1: Informasi Pesanan (Read-only reference) */}
-          <section className="flex flex-col gap-3 bg-white p-5 border border-[#F2F4F6] rounded-2xl shadow-sm">
-            <span className="text-xs font-bold text-[#00647C]">
-              ID: #ORD-{id.slice(0, 8).toUpperCase()}
+    <MobileShell header={<DetailHeader title={isLocked ? "Detail Pesanan" : "Ubah Pesanan"} backTo="/pemilik/pesanan" />}>
+      <main className="px-5 pb-24 pt-6 max-w-md mx-auto">
+        <form
+          className="space-y-5"
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSimpan();
+          }}
+        >
+          {/* Header Status Card */}
+          <section className="rounded-3xl border border-white/70 bg-gradient-to-br from-white via-white to-brand-100 p-5 shadow-card flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-wide text-brand-600">
+                #ORD-{id.slice(0, 8).toUpperCase()}
+              </p>
+              <h2 className="text-xl font-extrabold text-brand-900 mt-0.5">
+                {isLocked ? "Pesanan Dikirim" : "Pesanan Masuk"}
+              </h2>
+            </div>
+            <span
+              className={[
+                "rounded-full px-3 py-1 text-xs font-bold",
+                isLocked
+                  ? "bg-gradient-to-r from-positive-50 to-brand-100 text-positive-600"
+                  : "bg-gradient-to-r from-warn-50 to-warn-100 text-warn-700",
+              ].join(" ")}
+            >
+              {isLocked ? "Dikirim" : "Baru"}
             </span>
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-[#191C1E] leading-8">
-                Status: {isLocked ? "Pesanan Dikirim" : "Pesanan Masuk"}
-              </h2>
-              <span className={`text-xs font-bold px-4 py-1.5 rounded-full ${isLocked ? "bg-green-100 text-green-700" : "bg-[#DAE2FD] text-[#5C647A]"}`}>
-                {isLocked ? "Sudah Dikirim" : "Menunggu Konfirmasi"}
-              </span>
-            </div>
           </section>
 
-          <fieldset disabled={isLocked} className="contents">
-
-          {/* Section 2: Informasi Dasar & Platform */}
-          <section className="flex flex-col gap-4 bg-white p-5 border border-[#F2F4F6] rounded-2xl shadow-sm">
-            <h2 className="text-lg font-bold text-[#191C1E] border-b border-[#F1F5F9] pb-2">
-              Informasi Sumber
-            </h2>
-
-            {/* Platform Dropdown */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-semibold text-[#3E484D]">
-                Platform/Sumber <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={platform}
-                onChange={(e) => {
-                  setPlatform(e.target.value);
-                  if (errors.platform) {
-                    const errs = { ...errors };
-                    delete errs.platform;
-                    setErrors(errs);
-                  }
-                }}
-                className={`w-full h-12 px-4 bg-white border rounded-lg outline-none focus:border-[#00647C] ${
-                  errors.platform ? "border-red-400 focus:border-red-500" : "border-[#BDC8CE]"
-                }`}
-              >
-                <option value="">Pilih Platform...</option>
-                <option value="Shopee">Shopee</option>
-                <option value="Tokopedia">Tokopedia</option>
-              </select>
-              {errors.platform && <p className="text-xs text-red-500">{errors.platform}</p>}
-            </div>
-
-            {/* No Pesanan */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-semibold text-[#3E484D]">
-                No. Pesanan
-              </label>
-              <input
-                type="text"
-                value={noPesanan}
-                onChange={(e) => setNoPesanan(e.target.value)}
-                placeholder="Contoh: 240618ABCDEF"
-                className="w-full h-12 px-4 bg-white border border-[#BDC8CE] rounded-lg outline-none focus:border-[#00647C]"
-              />
-            </div>
-          </section>
-
-          {/* Section 3: Item Pesanan */}
-          <section className="flex flex-col gap-4 bg-white p-5 border border-[#F2F4F6] rounded-2xl shadow-sm">
-            <div className="flex items-center justify-between border-b border-[#F1F5F9] pb-2">
-              <h2 className="text-lg font-bold text-[#191C1E]">
-                Item Pesanan
+          <fieldset disabled={isLocked} className="space-y-5">
+            {/* Informasi Pesanan */}
+            <section className={cardClass}>
+              <h2 className="text-lg font-extrabold tracking-tight text-brand-900">
+                Informasi Pesanan
               </h2>
-              <span className="text-xs text-[#6E797E]">Min. 1 Item</span>
-            </div>
 
-            <div className="flex flex-col gap-4">
-              {items.map((item, index) => {
-                const prod = products.find((p) => p.id_produk === item.id_produk);
-                const varianList = prod?.varian || [];
-
-                return (
-                  <div
-                    key={index}
-                    className="p-4 rounded-xl border border-[#BDC8CE] flex flex-col gap-3 relative bg-[#F7F9FB]"
+              <label className="block space-y-1.5">
+                <span className={labelClass}>Platform / Sumber</span>
+                <span className="relative block">
+                  <select
+                    value={platform}
+                    onChange={(e) => setPlatform(e.target.value)}
+                    className={`${fieldClass} appearance-none pr-11`}
                   >
-                    {items.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveItem(index)}
-                        className="absolute top-2 right-2 text-red-400 hover:text-red-600 transition-colors p-1"
-                        title="Hapus Item"
-                      >
-                        <svg
-                          width="16"
-                          height="16"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2.5"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <path d="M3 6h18" />
-                          <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-                          <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-                        </svg>
-                      </button>
-                    )}
-
-                    <span className="text-xs font-bold text-[#6E797E]">
-                      Item {index + 1}
-                    </span>
-
-                    {/* Product Selection */}
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs font-semibold text-[#3E484D]">
-                        Pilih Produk <span className="text-red-500">*</span>
-                      </label>
-                      <select
-                        value={item.id_produk}
-                        onChange={(e) => updateItem(index, "id_produk", e.target.value)}
-                        className="w-full h-10 px-3 bg-white border border-[#BDC8CE] rounded-lg outline-none focus:border-[#00647C] text-sm"
-                      >
-                        <option value="">Pilih Produk...</option>
-                        {products.map((p) => (
-                          <option key={p.id_produk} value={p.id_produk}>
-                            {p.nama_produk}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Varian Selection */}
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs font-semibold text-[#3E484D]">
-                        Pilih Varian <span className="text-red-500">*</span>
-                      </label>
-                      <select
-                        value={item.id_varian}
-                        onChange={(e) => updateItem(index, "id_varian", e.target.value)}
-                        disabled={!item.id_produk}
-                        className="w-full h-10 px-3 bg-white border border-[#BDC8CE] rounded-lg outline-none focus:border-[#00647C] text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
-                      >
-                        <option value="">Pilih Varian...</option>
-                        {varianList.map((v) => (
-                          <option key={v.id_varian} value={v.id_varian}>
-                            {v.nama_varian} (Stok: {v.jumlah_stok} pcs)
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Quantity Stepper */}
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs font-semibold text-[#3E484D]">
-                        Jumlah (pcs)
-                      </label>
-                      <div className="flex items-center gap-3">
-                        <button
-                          type="button"
-                          onClick={() => decrementQty(index)}
-                          disabled={item.jumlah <= 1 || !item.id_varian}
-                          className="w-8 h-8 rounded border border-[#BDC8CE] flex items-center justify-center font-bold text-sm hover:bg-gray-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                        >
-                          −
-                        </button>
-                        <input
-                          type="number"
-                          min="1"
-                          value={item.jumlah}
-                          onChange={(e) => {
-                            const val = parseInt(e.target.value, 10);
-                            updateItem(
-                              index,
-                              "jumlah",
-                              isNaN(val) ? 1 : Math.max(1, val)
-                            );
-                          }}
-                          disabled={!item.id_varian}
-                          className="w-16 h-8 border border-[#BDC8CE] rounded text-center text-sm font-semibold focus:border-[#00647C] outline-none disabled:bg-gray-100"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => incrementQty(index)}
-                          disabled={!item.id_varian}
-                          className="w-8 h-8 rounded border border-[#BDC8CE] flex items-center justify-center font-bold text-sm hover:bg-gray-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                        >
-                          +
-                        </button>
-                      </div>
-                    </div>
-
-                    {errors[`item_${index}`] && (
-                      <p className="text-xs text-red-500 font-semibold">{errors[`item_${index}`]}</p>
-                    )}
-                    {errors[`item_${index}_qty`] && (
-                      <p className="text-xs text-red-500 font-semibold">{errors[`item_${index}_qty`]}</p>
-                    )}
-                  </div>
-                );
-              })}
-
-              <button
-                type="button"
-                onClick={handleAddItem}
-                className="w-full h-11 border-2 border-dashed border-[#BDC8CE] text-[#6E797E] hover:border-[#00647C] hover:text-[#00647C] transition-colors rounded-xl text-sm font-semibold flex items-center justify-center gap-1 cursor-pointer"
-              >
-                + Tambah Item Pesanan
-              </button>
-            </div>
-          </section>
-
-          {/* Section 4: Informasi Pelanggan */}
-          <section className="flex flex-col gap-4 bg-white p-5 border border-[#F2F4F6] rounded-2xl shadow-sm">
-            <h2 className="text-lg font-bold text-[#191C1E] border-b border-[#F1F5F9] pb-2">
-              Informasi Pelanggan
-            </h2>
-
-            {/* Nama Pelanggan */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-semibold text-[#3E484D]">
-                Nama Lengkap (Opsional)
+                    <option value="" disabled>Pilih Platform...</option>
+                    {platforms.map((p) => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
+                  <ChevronDownIcon className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-brand-600" />
+                </span>
               </label>
-              <input
-                type="text"
-                value={namaPelanggan}
-                onChange={(e) => {
-                  setNamaPelanggan(e.target.value);
-                  if (errors.namaPelanggan) {
-                    const errs = { ...errors };
-                    delete errs.namaPelanggan;
-                    setErrors(errs);
-                  }
-                }}
-                placeholder="Contoh: Budi Santoso (opsional)"
-                className="w-full h-12 px-4 bg-white border border-[#BDC8CE] rounded-lg outline-none focus:border-[#00647C]"
-              />
-            </div>
-          </section>
 
-          {/* Section 5: Metode Pengiriman */}
-          <section className="flex flex-col gap-4 bg-white p-5 border border-[#F2F4F6] rounded-2xl shadow-sm">
-            <h2 className="text-lg font-bold text-[#191C1E] border-b border-[#F1F5F9] pb-2">
-              Metode Pengiriman
-            </h2>
-
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-semibold text-[#3E484D]">
-                Metode Pengiriman <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={metodePengiriman}
-                onChange={(e) => {
-                  setMetodePengiriman(e.target.value);
-                  if (errors.metodePengiriman) {
-                    const errs = { ...errors };
-                    delete errs.metodePengiriman;
-                    setErrors(errs);
-                  }
-                }}
-                className={`w-full h-12 px-4 bg-white border rounded-lg outline-none focus:border-[#00647C] ${
-                  errors.metodePengiriman ? "border-red-400 focus:border-red-500" : "border-[#BDC8CE]"
-                }`}
-              >
-                <option value="">Pilih Metode...</option>
-                <option value="Diserahkan ke JNE">Diserahkan ke JNE</option>
-                <option value="Diserahkan ke JNT">Diserahkan ke JNT</option>
-                <option value="Dijemput Kurir">Dijemput Kurir</option>
-                <option value="Lainnya">Lainnya</option>
-              </select>
-              {errors.metodePengiriman && <p className="text-xs text-red-500">{errors.metodePengiriman}</p>}
-            </div>
-
-            {/* Custom Input for "Lainnya" */}
-            {metodePengiriman === "Lainnya" && (
-              <div className="flex flex-col gap-1.5 animate-fadeIn">
-                <label className="text-sm font-semibold text-[#3E484D]">
-                  Nama Ekspedisi/Kurir Lainnya <span className="text-red-500">*</span>
-                </label>
+              <label className="block space-y-1.5">
+                <span className={labelClass}>No. Pesanan / Invoice</span>
                 <input
                   type="text"
-                  value={metodeLainnya}
-                  onChange={(e) => {
-                    setMetodeLainnya(e.target.value);
-                    if (errors.metodeLainnya) {
-                      const errs = { ...errors };
-                      delete errs.metodeLainnya;
-                      setErrors(errs);
-                    }
-                  }}
-                  placeholder="Contoh: Diserahkan ke Sicepat"
-                  className={`w-full h-12 px-4 bg-white border rounded-lg outline-none focus:border-[#00647C] ${
-                    errors.metodeLainnya ? "border-red-400 focus:border-red-500" : "border-[#BDC8CE]"
-                  }`}
+                  value={noPesanan}
+                  onChange={(e) => setNoPesanan(e.target.value)}
+                  placeholder="Cth: INV/2026/001"
+                  className={fieldClass}
                 />
-                {errors.metodeLainnya && <p className="text-xs text-red-500">{errors.metodeLainnya}</p>}
-              </div>
-            )}
-          </section>
-
-          {/* Section 6: Catatan Pesanan */}
-          <section className="flex flex-col gap-4 bg-white p-5 border border-[#F2F4F6] rounded-2xl shadow-sm">
-            <h2 className="text-lg font-bold text-[#191C1E] border-b border-[#F1F5F9] pb-2">
-              Catatan Pesanan
-            </h2>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-semibold text-[#3E484D]">
-                Catatan (Opsional)
               </label>
-              <textarea
-                value={catatan}
-                onChange={(e) => setCatatan(e.target.value)}
-                placeholder="Masukkan catatan khusus jika ada..."
-                rows={3}
-                className="w-full p-4 bg-white border border-[#BDC8CE] rounded-lg outline-none focus:border-[#00647C] resize-none"
-              />
-            </div>
-          </section>
 
-          {/* Section 7: Resi Pesanan (PDF) */}
-          <section className="flex flex-col gap-4 bg-white p-5 border border-[#F2F4F6] rounded-2xl shadow-sm">
-            <h2 className="text-lg font-bold text-[#191C1E] border-b border-[#F1F5F9] pb-2">
-              Resi Pesanan (PDF)
-            </h2>
+              <label className="block space-y-1.5">
+                <span className={labelClass}>Nama Pelanggan</span>
+                <input
+                  type="text"
+                  value={namaPelanggan}
+                  onChange={(e) => setNamaPelanggan(e.target.value)}
+                  placeholder="Nama pembeli"
+                  className={fieldClass}
+                />
+              </label>
+            </section>
 
-            <div className="flex flex-col gap-4">
-              {currentResiUrl && (
-                <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
-                  <span className="font-semibold truncate max-w-[200px]">
-                    📄 File Resi Saat Ini Tersimpan
-                  </span>
-                  <a
-                    href={currentResiUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="font-bold underline hover:opacity-85"
+            {/* Item Pesanan */}
+            <section className={cardClass}>
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-lg font-extrabold tracking-tight text-brand-900">
+                  Item Pesanan
+                </h2>
+                {!isLocked && (
+                  <button
+                    type="button"
+                    onClick={handleAddItem}
+                    className="flex items-center gap-1 text-sm font-bold text-brand-600 hover:text-brand-800 cursor-pointer"
                   >
-                    Buka PDF
-                  </a>
-                </div>
-              )}
-
-              {/* PDF upload box */}
-              <div className="border-2 border-dashed border-[#BDC8CE] rounded-xl p-6 bg-[#F7F9FB] flex flex-col items-center gap-3 text-center transition-colors hover:border-[#00647C]">
-                <svg
-                  width="36"
-                  height="36"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="#94A3B8"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="17 8 12 3 7 8" />
-                  <line x1="12" y1="3" x2="12" y2="15" />
-                </svg>
-
-                <div className="flex flex-col gap-1">
-                  <span className="text-sm font-semibold text-[#191C1E]">
-                    {resiFile
-                      ? `Resi Baru: ${resiFile.name}`
-                      : "Pilih file PDF resi pengiriman baru"}
-                  </span>
-                  <span className="text-xs text-[#6E797E]">
-                    Format PDF. Maksimal 2MB. (Opsional)
-                  </span>
-                </div>
-
-                <label className="h-10 px-4 border border-[#00647C] text-[#00647C] font-semibold text-xs rounded-lg flex items-center justify-center cursor-pointer hover:bg-[#00647C]/5 transition-colors">
-                  Pilih File Baru
-                  <input
-                    type="file"
-                    accept=".pdf"
-                    onChange={(e) => {
-                      if (e.target.files && e.target.files[0]) {
-                        setResiFile(e.target.files[0]);
-                      }
-                    }}
-                    className="hidden"
-                  />
-                </label>
+                    <PlusIcon className="h-4 w-4" strokeWidth={2.6} />
+                    Tambah Item
+                  </button>
+                )}
               </div>
-            </div>
-          </section>
 
-          {/* Submit error */}
+              <ul className="space-y-3">
+                {items.map((item, index) => {
+                  const selectedProd = products.find((p) => p.id_produk === item.id_produk);
+                  const availableVariants = selectedProd?.varian || [];
+
+                  return (
+                    <li key={index} className="space-y-3 rounded-2xl border border-brand-200 bg-brand-50 p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-bold text-brand-700">Item {index + 1}</p>
+                        {!isLocked && items.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveItem(index)}
+                            className="flex h-8 w-8 items-center justify-center rounded-lg text-alert-600 hover:bg-alert-50 cursor-pointer"
+                          >
+                            <Trash2Icon className="h-4 w-4" strokeWidth={2.2} />
+                          </button>
+                        )}
+                      </div>
+
+                      <label className="block space-y-1.5">
+                        <span className={labelClass}>Produk</span>
+                        <span className="relative block">
+                          <select
+                            value={item.id_produk}
+                            onChange={(e) => updateItem(index, "id_produk", e.target.value)}
+                            className={`${fieldClass} appearance-none pr-11`}
+                          >
+                            <option value="" disabled>Pilih Produk...</option>
+                            {products.map((p) => (
+                              <option key={p.id_produk} value={p.id_produk}>{p.nama_produk}</option>
+                            ))}
+                          </select>
+                          <ChevronDownIcon className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-brand-600" />
+                        </span>
+                      </label>
+
+                      {item.id_produk && (
+                        <label className="block space-y-1.5">
+                          <span className={labelClass}>Varian</span>
+                          <span className="relative block">
+                            <select
+                              value={item.id_varian}
+                              onChange={(e) => updateItem(index, "id_varian", e.target.value)}
+                              className={`${fieldClass} appearance-none pr-11`}
+                            >
+                              <option value="" disabled>Pilih Varian...</option>
+                              {availableVariants.map((v) => (
+                                <option key={v.id_varian} value={v.id_varian}>
+                                  {v.nama_varian} (Stok: {v.jumlah_stok})
+                                </option>
+                              ))}
+                            </select>
+                            <ChevronDownIcon className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-brand-600" />
+                          </span>
+                        </label>
+                      )}
+
+                      <div className="space-y-1.5">
+                        <span className={labelClass}>Jumlah (Qty)</span>
+                        <div className="flex items-center justify-between rounded-2xl border border-brand-200 bg-white px-2 py-1.5">
+                          <button
+                            type="button"
+                            onClick={() => updateItem(index, "jumlah", Math.max(1, item.jumlah - 1))}
+                            disabled={isLocked}
+                            className="flex h-9 w-9 items-center justify-center rounded-xl text-brand-700 hover:bg-brand-50 cursor-pointer disabled:opacity-40"
+                          >
+                            <MinusIcon className="h-4 w-4" strokeWidth={2.6} />
+                          </button>
+                          <span className="text-base font-extrabold text-brand-900">{item.jumlah}</span>
+                          <button
+                            type="button"
+                            onClick={() => updateItem(index, "jumlah", item.jumlah + 1)}
+                            disabled={isLocked}
+                            className="flex h-9 w-9 items-center justify-center rounded-xl text-brand-700 hover:bg-brand-50 cursor-pointer disabled:opacity-40"
+                          >
+                            <PlusIcon className="h-4 w-4" strokeWidth={2.6} />
+                          </button>
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+
+            {/* Pengiriman & Resi */}
+            <section className={cardClass}>
+              <h2 className="text-lg font-extrabold tracking-tight text-brand-900">
+                Pengiriman & Resi
+              </h2>
+
+              <label className="block space-y-1.5">
+                <span className={labelClass}>Metode Pengiriman</span>
+                <span className="relative block">
+                  <select
+                    value={metodePengiriman}
+                    onChange={(e) => setMetodePengiriman(e.target.value)}
+                    className={`${fieldClass} appearance-none pr-11`}
+                  >
+                    <option value="" disabled>Pilih Metode...</option>
+                    {shippingMethods.map((m) => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                  <ChevronDownIcon className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-brand-600" />
+                </span>
+              </label>
+
+              <div className="space-y-1.5">
+                <span className={labelClass}>Resi Pesanan (PDF)</span>
+                <div className="relative flex w-full flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed border-brand-300 bg-brand-50 px-4 py-6 transition-colors duration-150 ease-out">
+                  {currentResiUrl ? (
+                    <div className="flex flex-col items-center gap-2 text-center">
+                      <span className="text-xs font-bold text-brand-700">File Resi Tersimpan</span>
+                      <a href={currentResiUrl} target="_blank" rel="noreferrer" className="text-xs font-bold text-brand-600 underline">
+                        Buka File Resi PDF
+                      </a>
+                      {!isLocked && (
+                        <label className="mt-2 rounded-xl border border-brand-300 bg-white px-4 py-2 text-xs font-bold text-brand-600 cursor-pointer hover:bg-brand-50">
+                          Ganti File Resi
+                          <input type="file" accept=".pdf,image/*" onChange={handleResiUpload} className="hidden" />
+                        </label>
+                      )}
+                    </div>
+                  ) : (
+                    <label className="flex w-full flex-col items-center justify-center gap-1.5 cursor-pointer">
+                      <FileUpIcon className="h-7 w-7 text-brand-600" strokeWidth={1.8} />
+                      <span className="text-sm font-semibold text-brand-700">
+                        {uploadingResi ? "Mengunggah..." : "Upload file resi"}
+                      </span>
+                      <input type="file" accept=".pdf,image/*" onChange={handleResiUpload} disabled={isLocked || uploadingResi} className="hidden" />
+                    </label>
+                  )}
+                </div>
+              </div>
+
+              <label className="block space-y-1.5">
+                <span className={labelClass}>Catatan Pesanan</span>
+                <textarea
+                  rows={3}
+                  value={catatan}
+                  onChange={(e) => setCatatan(e.target.value)}
+                  placeholder="Catatan khusus pesanan..."
+                  className={`${fieldClass} resize-none`}
+                />
+              </label>
+            </section>
+          </fieldset>
+
           {errors.submit && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600 font-semibold">
-              {errors.submit}
+            <div className="p-3 bg-alert-50 border border-alert-100 rounded-2xl">
+              <p className="text-xs font-bold text-alert-700">{errors.submit}</p>
             </div>
           )}
-          </fieldset>
-        </div>
-      </div>
 
-      {/* Sticky Bottom Action Bar - Figma Style */}
-      <div
-        className="fixed bottom-[66px] left-0 right-0 z-30 px-6 py-4 bg-white border-t border-[#ECEEF0] flex flex-col gap-3 max-w-lg mx-auto w-full"
-        style={{ boxShadow: "0px -4px 12px rgba(0,0,0,0.03)" }}
-      >
-        {isLocked ? (
-          /* Pesanan sudah dikirim — tampilkan info terkunci */
-          <div className="flex items-center justify-center gap-2 py-3 bg-amber-50 border border-amber-200 rounded-lg">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            <span className="text-sm font-semibold text-amber-700">Pesanan sudah dikirim — tidak dapat diubah atau dihapus</span>
+          {/* Action Buttons */}
+          <div className="space-y-3 pt-2">
+            {!isLocked ? (
+              <>
+                <button
+                  type="submit"
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-brand-600 to-brand-900 px-5 py-4 text-base font-bold text-white shadow-lift transition-opacity duration-150 ease-out hover:opacity-95 cursor-pointer"
+                >
+                  Simpan Perubahan
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl border border-alert-200 bg-gradient-to-b from-white to-alert-50 px-5 py-4 text-base font-bold text-alert-600 shadow-card transition-colors duration-150 ease-out hover:to-alert-100 cursor-pointer"
+                >
+                  <Trash2Icon className="h-5 w-5" strokeWidth={2.2} />
+                  Hapus Pesanan
+                </button>
+              </>
+            ) : (
+              <div className="p-4 bg-brand-50 border border-brand-200 rounded-2xl text-center">
+                <p className="text-xs font-bold text-brand-700">
+                  Pesanan sudah dikirim — data terkunci.
+                </p>
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="flex flex-col gap-2">
-            {/* Button Simpan Perubahan */}
-            <button
-              type="button"
-              onClick={handleSimpan}
-              className="w-full h-12 bg-[#00647C] text-white font-semibold text-sm rounded-lg cursor-pointer transition-opacity hover:opacity-90 flex items-center justify-center gap-1 shadow-sm"
-            >
-              Simpan Perubahan
-            </button>
+        </form>
+      </main>
 
-            {/* Button Hapus Pesanan (UC-03c) */}
-            <button
-              type="button"
-              onClick={handleDelete}
-              className="w-full h-12 bg-red-600 text-white font-semibold text-sm rounded-lg cursor-pointer transition-opacity hover:opacity-90 flex items-center justify-center gap-2"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-              Hapus Pesanan
-            </button>
-
-            {/* Button Batal */}
-            <button
-              type="button"
-              onClick={() => router.push("/pemilik/pesanan")}
-              className="w-full h-12 border border-[#6E797E] text-[#191C1E] font-semibold text-sm rounded-lg cursor-pointer transition-colors hover:bg-gray-50 flex items-center justify-center"
-            >
-              Batal
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Confirm Dialog (Edit) */}
       <ConfirmDialog
         open={showConfirm}
         onClose={() => setShowConfirm(false)}
         onConfirm={handleConfirmSave}
         title="Simpan Perubahan Pesanan?"
-        message="Pastikan semua data pesanan yang Anda ubah sudah benar sebelum disimpan."
+        message="Pastikan data pesanan yang Anda perbarui sudah benar."
         confirmLabel="Simpan"
         cancelLabel="Batal"
         loading={saving}
       />
 
-      {/* Confirm Dialog (Delete - UC-03c) */}
       <ConfirmDialog
         open={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
         onConfirm={handleConfirmDelete}
         title="Hapus Pesanan?"
-        message="Apakah Anda yakin ingin menghapus Pesanan ini? Tindakan ini tidak dapat dibatalkan."
+        message="Apakah Anda yakin ingin menghapus pesanan ini? Tindakan ini tidak dapat dibatalkan."
         confirmLabel="Ya, Hapus"
         cancelLabel="Batal"
         variant="danger"
         loading={deleting}
       />
 
-      {/* Success Dialog (Edit) */}
       <SuccessDialog
         open={showSuccess}
         onClose={() => router.push("/pemilik/pesanan")}
@@ -800,14 +587,13 @@ export default function DetailPesananPemilikPage({
         buttonLabel="Kembali ke Daftar Pesanan"
       />
 
-      {/* Success Dialog (Delete - UC-03c) */}
       <SuccessDialog
         open={showDeleteSuccess}
         onClose={() => router.push("/pemilik/pesanan")}
         title="Pesanan Berhasil Dihapus!"
-        message="Data pesanan dan seluruh item terkait telah dihapus dari sistem."
+        message="Data pesanan telah dihapus dari sistem."
         buttonLabel="Kembali ke Daftar Pesanan"
       />
-    </div>
+    </MobileShell>
   );
 }

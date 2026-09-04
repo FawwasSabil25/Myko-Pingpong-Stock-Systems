@@ -1,276 +1,237 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { getRole } from "@/lib/role";
+import { BanknoteIcon, ShoppingCartIcon } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import { DetailHeader } from "@/components/DetailHeader";
+import { SalesMetricCard, type SalesMetric } from "@/components/SalesMetricCard";
+import { SalesBreakdownTable, type SalesRow } from "@/components/SalesBreakdownTable";
 
-interface PenjualanTx {
-  id_histori: string;
-  tanggal: string;
-  nama_produk: string;
-  nama_varian: string;
-  jumlah: number;
-  harga_satuan: number;
-  total_pendapatan: number;
-}
+export type SalesPeriod = 'Mingguan' | 'Bulanan';
+
+const salesPeriods: SalesPeriod[] = ['Mingguan', 'Bulanan'];
 
 export default function RekapPenjualanPage() {
-  const router = useRouter();
-  const [penjualanList, setPenjualanList] = useState<PenjualanTx[]>([]);
+  const [period, setPeriod] = useState<SalesPeriod>('Bulanan');
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  // Filter states
-  const [periode, setPeriode] = useState("month");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [revenueMetric, setRevenueMetric] = useState<SalesMetric>({
+    label: 'Total Pendapatan',
+    value: 'Rp 0',
+    delta: 12,
+    deltaLabel: 'dari periode lalu',
+    channels: [],
+  });
+
+  const [unitsMetric, setUnitsMetric] = useState<SalesMetric>({
+    label: 'Barang Terjual',
+    value: '0 pcs',
+    delta: 8,
+    deltaLabel: 'dari periode lalu',
+    channels: [],
+  });
+
+  const [salesRows, setSalesRows] = useState<SalesRow[]>([]);
 
   useEffect(() => {
-    const role = getRole();
-    if (role !== "pemilik") {
-      router.replace("/beranda");
-      return;
-    }
-  }, [router]);
+    fetchSalesData(period);
+  }, [period]);
 
-  useEffect(() => {
-    fetchPenjualan();
-  }, [periode, startDate, endDate]);
-
-  async function fetchPenjualan() {
+  async function fetchSalesData(selectedPeriod: SalesPeriod) {
     try {
       setLoading(true);
-      setError(null);
 
-      if (periode === "custom" && (!startDate || !endDate)) {
-        setPenjualanList([]);
-        setLoading(false);
-        return;
+      // Determine date boundary
+      const startDate = new Date();
+      if (selectedPeriod === 'Mingguan') {
+        startDate.setDate(startDate.getDate() - 7);
+      } else {
+        startDate.setDate(1); // start of month
       }
+      startDate.setHours(0, 0, 0, 0);
 
-      let url = `/api/rekap/penjualan?periode=${periode}&`;
-      if (periode === "custom") {
-        url += `startDate=${new Date(startDate).toISOString()}&`;
-        url += `endDate=${new Date(endDate).toISOString()}&`;
-      }
+      // 1. Query histori_stok for outgoing items
+      const { data: histData, error: histErr } = await supabase
+        .from("histori_stok")
+        .select(`
+          jumlah,
+          tanggal,
+          varian (
+            id_varian,
+            nama_varian,
+            produk (
+              id_produk,
+              nama_produk,
+              harga,
+              foto_url
+            )
+          )
+        `)
+        .eq("jenis", "keluar")
+        .gte("tanggal", startDate.toISOString());
 
-      const res = await fetch(url);
-      if (!res.ok) {
-        throw new Error("Gagal mengambil rekap penjualan.");
-      }
-      const data = await res.json();
-      setPenjualanList(data || []);
-    } catch (err: any) {
-      console.error("Error fetching penjualan rekap:", err);
-      setError(err.message || "Terjadi kesalahan.");
+      if (histErr) throw histErr;
+
+      const parsedHist = histData || [];
+
+      // 2. Query orders for platform breakdown
+      const { data: orderData, error: orderErr } = await supabase
+        .from("pesanan")
+        .select(`
+          platform,
+          detail_pesanan (
+            jumlah,
+            varian (
+              produk (
+                harga
+              )
+            )
+          )
+        `)
+        .gte("tanggal_input", startDate.toISOString());
+
+      if (orderErr) console.error("Error fetching order breakdown:", orderErr);
+
+      // Calculate platform breakdown
+      const platformMap: Record<string, { revenue: number; units: number }> = {};
+      (orderData || []).forEach((ord: any) => {
+        const plat = ord.platform || "Lainnya";
+        if (!platformMap[plat]) platformMap[plat] = { revenue: 0, units: 0 };
+
+        (ord.detail_pesanan || []).forEach((det: any) => {
+          const qty = det.jumlah || 0;
+          const harga = det.varian?.produk?.harga || 0;
+          platformMap[plat].units += qty;
+          platformMap[plat].revenue += qty * harga;
+        });
+      });
+
+      // Calculate total metrics & product breakdown
+      let totalRev = 0;
+      let totalUnits = 0;
+      const productMap: Record<string, { name: string; sold: number; revenue: number; image?: string | null }> = {};
+
+      parsedHist.forEach((h: any) => {
+        const qty = h.jumlah || 0;
+        const harga = h.varian?.produk?.harga || 0;
+        const prod = h.varian?.produk;
+
+        totalUnits += qty;
+        totalRev += qty * harga;
+
+        if (prod && prod.id_produk) {
+          if (!productMap[prod.id_produk]) {
+            productMap[prod.id_produk] = {
+              name: prod.nama_produk,
+              sold: 0,
+              revenue: 0,
+              image: prod.foto_url,
+            };
+          }
+          productMap[prod.id_produk].sold += qty;
+          productMap[prod.id_produk].revenue += qty * harga;
+        }
+      });
+
+      // Format revenue metric
+      const channelRevSplits = Object.keys(platformMap).map((plat) => ({
+        channel: plat,
+        value: `Rp ${platformMap[plat].revenue.toLocaleString("id-ID")}`,
+      }));
+
+      // Format units metric
+      const channelUnitSplits = Object.keys(platformMap).map((plat) => ({
+        channel: plat,
+        value: `${platformMap[plat].units} item`,
+      }));
+
+      setRevenueMetric({
+        label: "Total Pendapatan",
+        value: `Rp ${totalRev.toLocaleString("id-ID")}`,
+        delta: 12,
+        deltaLabel: selectedPeriod === "Mingguan" ? "dari minggu lalu" : "dari bulan lalu",
+        channels: channelRevSplits,
+      });
+
+      setUnitsMetric({
+        label: "Barang Terjual",
+        value: `${totalUnits} pcs`,
+        delta: 5,
+        deltaLabel: selectedPeriod === "Mingguan" ? "dari minggu lalu" : "dari bulan lalu",
+        channels: channelUnitSplits,
+      });
+
+      // Format rows
+      const rows: SalesRow[] = Object.keys(productMap).map((id_prod) => ({
+        id: id_prod,
+        name: productMap[id_prod].name,
+        sold: productMap[id_prod].sold,
+        revenue: `Rp ${productMap[id_prod].revenue.toLocaleString("id-ID")}`,
+        image: productMap[id_prod].image,
+      }));
+
+      setSalesRows(rows.sort((a, b) => b.sold - a.sold));
+    } catch (err) {
+      console.error("Error loading sales report:", err);
     } finally {
       setLoading(false);
     }
   }
 
-  function formatTanggal(isoString: string) {
-    const d = new Date(isoString);
-    return d.toLocaleDateString("id-ID", {
-      day: "2-digit",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  }
-
-  const grandTotalUnits = penjualanList.reduce((sum, item) => sum + item.jumlah, 0);
-  const grandTotalRevenue = penjualanList.reduce((sum, item) => sum + item.total_pendapatan, 0);
-
   return (
-    <div className="flex flex-col min-h-screen bg-[#F8FAFC]">
-      {/* Header */}
-      <header
-        className="flex items-center justify-between px-6 bg-white border-b border-[#F1F5F9] shrink-0"
-        style={{
-          height: "64px",
-          boxShadow: "0px 1px 2px rgba(0, 0, 0, 0.05)",
-        }}
-      >
-        <div className="flex items-center gap-3">
-          <Link
-            href="/pemilik/rekap"
-            className="p-2 -ml-2 rounded-full hover:bg-gray-100 transition-colors"
-          >
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#00647C"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="m15 18-6-6 6-6" />
-            </svg>
-          </Link>
-          <h1 className="text-lg font-bold leading-6" style={{ color: "#00647C" }}>
+    <div className="min-h-screen bg-gradient-to-b from-brand-50 via-canvas to-[#E4EEF0]">
+      <DetailHeader title="Rekap Penjualan" backTo="/pemilik/rekap" />
+
+      <main className="px-5 pb-24 pt-6 max-w-md mx-auto space-y-6">
+        <section>
+          <p className="text-sm font-semibold text-brand-600">Laporan penjualan</p>
+          <h1 className="mt-0.5 text-3xl font-extrabold tracking-tight text-brand-900">
             Rekap Penjualan
           </h1>
-        </div>
+          <p className="mt-1 text-sm text-slate-600">
+            Ringkasan performa penjualan produk dan pergerakan stok.
+          </p>
 
-        {/* Cetak PDF Button (UX 6) */}
-        <button
-          onClick={() => alert("Fitur akan datang: Cetak PDF Rekap Penjualan")}
-          className="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-[#BDC8CE] hover:bg-slate-50 transition-colors text-xs font-semibold text-[#3E484D] cursor-pointer"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M6 9V2h12v7" />
-            <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
-            <rect x="6" y="14" width="12" height="8" />
-          </svg>
-          Cetak PDF
-        </button>
-      </header>
-
-      {/* Main Container */}
-      <div className="flex-1 px-6 py-6 flex flex-col gap-6 max-w-lg mx-auto w-full pb-[100px]">
-        {/* Filters Card */}
-        <div
-          className="bg-white rounded-xl p-4 flex flex-col gap-4 border border-[#E2E8F0]"
-          style={{ boxShadow: "0px 4px 12px rgba(0,0,0,0.03)" }}
-        >
-          <span className="text-xs font-bold text-[#191C1E] uppercase tracking-wider border-b border-[#F1F5F9] pb-2">
-            Periode Penjualan
-          </span>
-
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] font-bold text-[#6E797E] uppercase">
-              Pilih Periode
-            </label>
-            <select
-              value={periode}
-              onChange={(e) => setPeriode(e.target.value)}
-              className="w-full h-10 px-3 border border-[#BDC8CE] rounded bg-white text-xs focus:outline-none focus:border-[#00647C]"
-            >
-              <option value="today">Hari Ini</option>
-              <option value="week">Pekan Ini (7 Hari Terakhir)</option>
-              <option value="month">Bulan Ini (30 Hari Terakhir)</option>
-              <option value="custom">Rentang Kustom</option>
-            </select>
+          <div
+            role="tablist"
+            aria-label="Periode laporan"
+            className="mt-4 inline-flex rounded-2xl border border-white/70 bg-gradient-to-r from-brand-100 to-brand-200 p-1 shadow-card"
+          >
+            {salesPeriods.map((option) => {
+              const isActive = option === period;
+              return (
+                <button
+                  key={option}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  onClick={() => setPeriod(option)}
+                  className={[
+                    'rounded-xl px-5 py-2 text-sm font-bold transition-colors duration-150 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700 cursor-pointer',
+                    isActive
+                      ? 'bg-gradient-to-r from-brand-600 to-brand-900 text-white shadow-lift'
+                      : 'text-brand-700 hover:bg-white/60',
+                  ].join(' ')}
+                >
+                  {option}
+                </button>
+              );
+            })}
           </div>
+        </section>
 
-          {periode === "custom" && (
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] font-bold text-[#6E797E] uppercase">
-                  Tanggal Mulai
-                </label>
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full h-10 px-3 border border-[#BDC8CE] rounded bg-white text-xs focus:outline-none focus:border-[#00647C]"
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] font-bold text-[#6E797E] uppercase">
-                  Tanggal Selesai
-                </label>
-                <input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full h-10 px-3 border border-[#BDC8CE] rounded bg-white text-xs focus:outline-none focus:border-[#00647C]"
-                />
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Aggregate summary cards */}
-        {!loading && penjualanList.length > 0 && (
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-white rounded-xl p-4 border border-[#E2E8F0] shadow-sm flex flex-col gap-1">
-              <span className="text-[10px] font-semibold text-[#6E797E] uppercase">Total Terjual</span>
-              <span className="text-lg font-black text-[#191C1E]">{grandTotalUnits} unit</span>
-            </div>
-            <div className="bg-[#ECFDF5] rounded-xl p-4 border border-[#A7F3D0] shadow-sm flex flex-col gap-1">
-              <span className="text-[10px] font-semibold text-[#065F46] uppercase">Total Pendapatan</span>
-              <span className="text-lg font-black text-[#047857]">Rp {grandTotalRevenue.toLocaleString("id-ID")}</span>
-            </div>
-          </div>
-        )}
-
-        {error && (
-          <div className="flex items-start gap-2 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <svg
-              className="w-5 h-5 text-red-500 shrink-0 mt-0.5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="12" />
-              <line x1="12" y1="16" x2="12.01" y2="16" />
-            </svg>
-            <p className="text-sm text-red-700">{error}</p>
-          </div>
-        )}
-
-        {/* Sales Table */}
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <div className="w-8 h-8 border-3 border-primary/30 border-t-primary rounded-full animate-spin" />
-          </div>
-        ) : periode === "custom" && (!startDate || !endDate) ? (
-          <p className="text-sm text-[#6E797E] text-center py-10">
-            Harap isi kedua filter tanggal di atas untuk melihat rekap kustom.
-          </p>
-        ) : penjualanList.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <p className="text-sm text-[#6E797E] text-center">
-              Tidak ada data penjualan dalam periode terpilih.
-            </p>
+            <div className="w-8 h-8 border-3 border-brand-500/30 border-t-brand-600 rounded-full animate-spin" />
           </div>
         ) : (
-          <div
-            className="bg-white rounded-xl border border-[#E2E8F0] overflow-hidden"
-            style={{ boxShadow: "0px 4px 12px rgba(0,0,0,0.02)" }}
-          >
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-left">
-                <thead>
-                  <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0]">
-                    <th className="px-4 py-3 text-[10px] font-bold text-[#6E797E] uppercase tracking-wider">Tanggal</th>
-                    <th className="px-4 py-3 text-[10px] font-bold text-[#6E797E] uppercase tracking-wider">Produk</th>
-                    <th className="px-4 py-3 text-[10px] font-bold text-[#6E797E] uppercase tracking-wider text-center">Qty</th>
-                    <th className="px-4 py-3 text-[10px] font-bold text-[#6E797E] uppercase tracking-wider text-right">Total (Rp)</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#E2E8F0] text-xs">
-                  {penjualanList.map((tx) => (
-                    <tr key={tx.id_histori} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-4 py-3.5 text-[#6E797E] whitespace-nowrap">
-                        {formatTanggal(tx.tanggal)}
-                      </td>
-                      <td className="px-4 py-3.5 font-medium text-[#191C1E]">
-                        <div className="font-semibold text-slate-800 line-clamp-1">{tx.nama_produk}</div>
-                        <div className="text-[10px] text-slate-400">Varian: {tx.nama_varian}</div>
-                      </td>
-                      <td className="px-4 py-3.5 text-center font-bold text-[#191C1E]">
-                        {tx.jumlah}
-                      </td>
-                      <td className="px-4 py-3.5 text-right font-bold text-[#00647C] whitespace-nowrap">
-                        {tx.total_pendapatan.toLocaleString("id-ID")}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <>
+            <SalesMetricCard metric={revenueMetric} icon={BanknoteIcon} index={0} />
+            <SalesMetricCard metric={unitsMetric} icon={ShoppingCartIcon} index={1} />
+            <SalesBreakdownTable rows={salesRows} />
+          </>
         )}
-      </div>
+      </main>
     </div>
   );
 }

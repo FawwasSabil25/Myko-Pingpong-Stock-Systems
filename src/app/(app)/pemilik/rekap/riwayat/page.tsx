@@ -1,45 +1,87 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { CalendarIcon, ChevronDownIcon, SlidersHorizontalIcon } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { getRole } from "@/lib/role";
+import { MobileShell } from "@/components/MobileShell";
+import { DetailHeader } from "@/components/DetailHeader";
+import { StockHistoryList, type HistoryItem } from "@/components/StockHistoryList";
 
-interface Varian {
-  id_varian: string;
-  nama_varian: string;
-  produk: {
-    id_produk: string;
-    nama_produk: string;
-  };
-}
-
-interface HistoriStok {
-  id_histori: string;
-  jenis: "masuk" | "keluar";
-  jumlah: number;
-  tanggal: string;
-  id_referensi: string | null;
-  varian: Varian;
-}
-
-interface ProdukOption {
-  id_produk: string;
-  nama_produk: string;
-}
+const PAGE_SIZE = 4;
 
 export default function RekapRiwayatPage() {
   const router = useRouter();
-  const [riwayatList, setRiwayatList] = useState<HistoriStok[]>([]);
-  const [produkList, setProdukList] = useState<ProdukOption[]>([]);
+  const [riwayatList, setRiwayatList] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Filter states
-  const [selectedProductId, setSelectedProductId] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  // Filter states - MagicPatterns design
+  const [period, setPeriod] = useState<string>("Bulan Ini");
+  const [page, setPage] = useState(0);
+
+  const historyPeriods = ["Bulan Ini", "Minggu Ini", "3 Bulan Terakhir"] as const;
+
+  const fetchRiwayat = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Calculate date range based on period
+      const endDate = new Date();
+      endDate.setHours(23, 59, 59, 999);
+      
+      const startDate = new Date();
+      if (period === "Minggu Ini") {
+        startDate.setDate(startDate.getDate() - 7);
+      } else if (period === "3 Bulan Terakhir") {
+        startDate.setMonth(startDate.getMonth() - 3);
+      } else {
+        // Bulan Ini
+        startDate.setDate(1);
+      }
+      startDate.setHours(0, 0, 0, 0);
+
+      const res = await fetch(`/api/rekap/riwayat?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`);
+      if (!res.ok) {
+        throw new Error("Gagal memuat data pergerakan stok.");
+      }
+      const data = await res.json();
+      
+      // Format data for StockHistoryList
+      const formatted: HistoryItem[] = (data || []).map((item: {
+        id_histori: string | number;
+        tanggal: string;
+        jenis: string;
+        jumlah: number;
+        id_referensi?: string | null;
+        varian?: {
+          nama_varian?: string;
+          produk?: {
+            nama_produk?: string;
+          };
+        };
+      }) => ({
+        id: String(item.id_histori),
+        productName: String(item.varian?.produk?.nama_produk || "Produk"),
+        variant: String(item.varian?.nama_varian || "Varian"),
+        date: new Date(String(item.tanggal)).toLocaleDateString("id-ID", { day: "2-digit", month: "short" }),
+        time: new Date(String(item.tanggal)).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
+        timezone: "WIB",
+        quantity: Number(item.jumlah),
+        type: String(item.jenis),
+        reference: item.id_referensi ? String(item.id_referensi) : undefined,
+      }));
+
+      setRiwayatList(formatted);
+    } catch (err: unknown) {
+      console.error("Error loading riwayat:", err);
+      setError(err instanceof Error ? err.message : "Terjadi kesalahan.");
+    } finally {
+      setLoading(false);
+    }
+  }, [period]);
 
   useEffect(() => {
     const role = getRole();
@@ -47,278 +89,81 @@ export default function RekapRiwayatPage() {
       router.replace("/beranda");
       return;
     }
-    fetchProducts();
-  }, [router]);
+    fetchRiwayat();
+  }, [router, fetchRiwayat]);
 
   useEffect(() => {
     fetchRiwayat();
-  }, [selectedProductId, startDate, endDate]);
+  }, [period, page, fetchRiwayat]);
 
-  async function fetchProducts() {
-    try {
-      const { data, error } = await supabase
-        .from("produk")
-        .select("id_produk, nama_produk")
-        .order("nama_produk", { ascending: true });
-
-      if (error) throw error;
-      setProdukList(data || []);
-    } catch (err) {
-      console.error("Error fetching products:", err);
-    }
-  }
-
-  async function fetchRiwayat() {
-    try {
-      setLoading(true);
-      setError(null);
-
-      let url = "/api/rekap/riwayat?";
-      if (selectedProductId) {
-        url += `id_produk=${selectedProductId}&`;
-      }
-      if (startDate) {
-        url += `startDate=${new Date(startDate).toISOString()}&`;
-      }
-      if (endDate) {
-        const d = new Date(endDate);
-        d.setHours(23, 59, 59, 999);
-        url += `endDate=${d.toISOString()}&`;
-      }
-
-      const res = await fetch(url);
-      if (!res.ok) {
-        throw new Error("Gagal memuat data pergerakan stok.");
-      }
-      const data = await res.json();
-      setRiwayatList(data || []);
-    } catch (err: any) {
-      console.error("Error loading riwayat:", err);
-      setError(err.message || "Terjadi kesalahan.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  function formatTanggal(isoString: string) {
-    const d = new Date(isoString);
-    return d.toLocaleDateString("id-ID", {
-      day: "2-digit",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  }
-
-  function handleResetFilters() {
-    setSelectedProductId("");
-    setStartDate("");
-    setEndDate("");
-  }
+  const pageCount = Math.ceil(riwayatList.length / PAGE_SIZE);
+  const entries = riwayatList.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#F8FAFC]">
-      {/* Header */}
-      <header
-        className="flex items-center justify-between px-6 bg-white border-b border-[#F1F5F9] shrink-0"
-        style={{
-          height: "64px",
-          boxShadow: "0px 1px 2px rgba(0, 0, 0, 0.05)",
-        }}
-      >
-        <div className="flex items-center gap-3">
-          <Link
-            href="/pemilik/rekap"
-            className="p-2 -ml-2 rounded-full hover:bg-gray-100 transition-colors"
-          >
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#00647C"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="m15 18-6-6 6-6" />
-            </svg>
-          </Link>
-          <h1 className="text-lg font-bold leading-6" style={{ color: "#00647C" }}>
+    <MobileShell
+      header={<DetailHeader title="Riwayat Pergerakan Stok" backTo="/pemilik/rekap" />}
+    >
+      <div className="space-y-6">
+        <section>
+          <p className="text-sm font-semibold text-brand-600">Rekap · Aktivitas stok</p>
+          <h1 className="mt-0.5 text-3xl font-extrabold tracking-tight text-brand-900">
             Riwayat Pergerakan Stok
           </h1>
-        </div>
+          <p className="mt-1 text-sm text-slate-600">
+            Log kronologis aktivitas stok masuk dan keluar.
+          </p>
+        </section>
 
-        {/* Cetak PDF Button (UX 6) */}
-        <button
-          onClick={() => alert("Fitur akan datang: Cetak PDF Riwayat Pergerakan Stok")}
-          className="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-[#BDC8CE] hover:bg-slate-50 transition-colors text-xs font-semibold text-[#3E484D] cursor-pointer"
+        <section
+          aria-label="Filter riwayat"
+          className="flex items-center gap-3 rounded-3xl border border-white/60 bg-gradient-to-br from-brand-300 via-brand-200 to-brand-100 p-3 shadow-card"
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M6 9V2h12v7" />
-            <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
-            <rect x="6" y="14" width="12" height="8" />
-          </svg>
-          Cetak PDF
-        </button>
-      </header>
-
-      {/* Main Container */}
-      <div className="flex-1 px-6 py-6 flex flex-col gap-6 max-w-lg mx-auto w-full pb-[100px]">
-        {/* Filters Card */}
-        <div
-          className="bg-white rounded-xl p-4 flex flex-col gap-4 border border-[#E2E8F0]"
-          style={{ boxShadow: "0px 4px 12px rgba(0,0,0,0.03)" }}
-        >
-          <div className="flex items-center justify-between border-b border-[#F1F5F9] pb-2">
-            <span className="text-xs font-bold text-[#191C1E] uppercase tracking-wider">
-              Filter Riwayat
-            </span>
-            {(selectedProductId || startDate || endDate) && (
-              <button
-                type="button"
-                onClick={handleResetFilters}
-                className="text-xs font-bold text-red-500 hover:underline cursor-pointer"
-              >
-                Reset Filter
-              </button>
-            )}
-          </div>
-
-          {/* Product Select */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] font-bold text-[#6E797E] uppercase">
-              Filter Produk
-            </label>
+          <label className="relative min-w-0 flex-1">
+            <span className="sr-only">Pilih periode</span>
+            <CalendarIcon
+              className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-brand-500"
+              aria-hidden="true"
+            />
             <select
-              value={selectedProductId}
-              onChange={(e) => setSelectedProductId(e.target.value)}
-              className="w-full h-10 px-3 border border-[#BDC8CE] rounded bg-white text-xs focus:outline-none focus:border-[#00647C]"
+              value={period}
+              onChange={(event) => {
+                setPeriod(event.target.value);
+                setPage(0);
+              }}
+              className="w-full appearance-none rounded-2xl border border-white/70 bg-gradient-to-b from-white to-brand-50 py-3 pl-11 pr-10 text-sm font-bold text-brand-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-700"
             >
-              <option value="">Semua Produk</option>
-              {produkList.map((p) => (
-                <option key={p.id_produk} value={p.id_produk}>
-                  {p.nama_produk}
+              {historyPeriods.map((option) => (
+                <option key={option} value={option}>
+                  {option}
                 </option>
               ))}
             </select>
-          </div>
+            <ChevronDownIcon
+              className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-brand-600"
+              aria-hidden="true"
+            />
+          </label>
 
-          {/* Date range selection */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-bold text-[#6E797E] uppercase">
-                Mulai Tanggal
-              </label>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-full h-10 px-3 border border-[#BDC8CE] rounded bg-white text-xs focus:outline-none focus:border-[#00647C]"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-bold text-[#6E797E] uppercase">
-                Sampai Tanggal
-              </label>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="w-full h-10 px-3 border border-[#BDC8CE] rounded bg-white text-xs focus:outline-none focus:border-[#00647C]"
-              />
-            </div>
-          </div>
-        </div>
-
-        {error && (
-          <div className="flex items-start gap-2 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <svg
-              className="w-5 h-5 text-red-500 shrink-0 mt-0.5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="12" />
-              <line x1="12" y1="16" x2="12.01" y2="16" />
-            </svg>
-            <p className="text-sm text-red-700">{error}</p>
-          </div>
-        )}
-
-        {/* Riwayat Table */}
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="w-8 h-8 border-3 border-primary/30 border-t-primary rounded-full animate-spin" />
-          </div>
-        ) : riwayatList.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <p className="text-sm text-[#6E797E] text-center">
-              Tidak ada data pergerakan stok untuk filter terpilih.
-            </p>
-          </div>
-        ) : (
-          <div
-            className="bg-white rounded-xl border border-[#E2E8F0] overflow-hidden"
-            style={{ boxShadow: "0px 4px 12px rgba(0,0,0,0.02)" }}
+          <button
+            type="button"
+            className="flex shrink-0 items-center gap-2 rounded-2xl bg-gradient-to-r from-brand-600 to-brand-900 px-4 py-3 text-sm font-bold text-white shadow-lift transition-opacity duration-150 ease-out hover:opacity-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700"
           >
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-left">
-                <thead>
-                  <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0]">
-                    <th className="px-4 py-3 text-[10px] font-bold text-[#6E797E] uppercase tracking-wider">Tanggal</th>
-                    <th className="px-4 py-3 text-[10px] font-bold text-[#6E797E] uppercase tracking-wider">Tipe</th>
-                    <th className="px-4 py-3 text-[10px] font-bold text-[#6E797E] uppercase tracking-wider">Barang (Varian)</th>
-                    <th className="px-4 py-3 text-[10px] font-bold text-[#6E797E] uppercase tracking-wider text-center">Qty</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#E2E8F0] text-xs">
-                  {riwayatList.map((item) => {
-                    const isMasuk = item.jenis === "masuk";
-                    return (
-                      <tr key={item.id_histori} className="hover:bg-slate-50 transition-colors">
-                        <td className="px-4 py-3.5 text-[#6E797E] whitespace-nowrap">
-                          {formatTanggal(item.tanggal)}
-                        </td>
-                        <td className="px-4 py-3.5 whitespace-nowrap">
-                          <span
-                            className={`inline-block text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded ${
-                              isMasuk
-                                ? "bg-green-50 text-green-700 border border-green-200"
-                                : "bg-red-50 text-red-700 border border-red-200"
-                            }`}
-                          >
-                            {isMasuk ? "Masuk" : "Keluar"}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3.5 font-medium text-[#191C1E]">
-                          <div className="font-semibold text-slate-800 line-clamp-1">
-                            {item.varian.produk.nama_produk}
-                          </div>
-                          <div className="text-[10px] text-slate-400">
-                            Varian: {item.varian.nama_varian} | Ref: {item.id_referensi ? item.id_referensi.slice(0, 8) : "Manual"}
-                          </div>
-                        </td>
-                        <td
-                          className={`px-4 py-3.5 text-center font-bold text-sm whitespace-nowrap ${
-                            isMasuk ? "text-green-600" : "text-red-500"
-                          }`}
-                        >
-                          {isMasuk ? `+${item.jumlah}` : `-${item.jumlah}`}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
+            <SlidersHorizontalIcon className="h-4 w-4" strokeWidth={2.4} />
+            Filter
+          </button>
+        </section>
+
+        <StockHistoryList
+          entries={entries}
+          rangeStart={riwayatList.length > 0 ? page * PAGE_SIZE + 1 : 0}
+          rangeEnd={page * PAGE_SIZE + entries.length}
+          totalEntries={riwayatList.length}
+          canGoBack={page > 0}
+          canGoForward={page < pageCount - 1}
+          onBack={() => setPage((current) => Math.max(0, current - 1))}
+          onForward={() => setPage((current) => Math.min(pageCount - 1, current + 1))}
+        />
       </div>
-    </div>
+    </MobileShell>
   );
 }

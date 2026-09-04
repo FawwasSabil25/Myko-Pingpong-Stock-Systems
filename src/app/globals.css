@@ -31,6 +31,16 @@
   --color-positive-50: #E8F7EE;
   --color-positive-600: #137A45;
 
+  --color-wa-500: #25D366;
+  --color-wa-600: #1DA851;
+  --color-wa-700: #128C7E;
+
+  --color-warn-50: #FEF3E4;
+  --color-warn-100: #FBDFBB;
+  --color-warn-200: #F6C68A;
+  --color-warn-600: #A2570B;
+  --color-warn-700: #7C4208;
+
   --shadow-card: 0 1px 2px rgba(3, 48, 60, 0.04), 0 8px 24px -12px rgba(3, 48, 60, 0.18);
   --shadow-lift: 0 10px 30px -12px rgba(5, 66, 82, 0.45);
 

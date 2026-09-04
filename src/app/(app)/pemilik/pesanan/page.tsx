@@ -3,343 +3,189 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { getRole } from "@/lib/role";
-import PullToRefresh from "@/components/PullToRefresh";
+import { motion } from "framer-motion";
+import { ClockIcon, PlusIcon, TruckIcon } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import { AppHeader } from "@/components/AppHeader";
+import { OrderCard, type OrderItem } from "@/components/OrderCard";
 
-interface Varian {
-  id_varian: string;
-  nama_varian: string;
-  produk: {
-    id_produk: string;
-    nama_produk: string;
-    kategori: string | null;
-    harga?: number | null;
-  };
-}
-
-interface DetailPesanan {
-  id_detail: string;
-  id_varian: string;
-  jumlah: number;
-  varian: Varian;
-}
-
-interface Pesanan {
+interface OrderData {
   id_pesanan: string;
   tanggal_input: string;
   status: string;
-  resi_url: string | null;
-  created_at: string;
-  platform?: string;
+  platform: string;
+  nama_pelanggan: string;
+  metode_pengiriman: string;
   no_pesanan?: string | null;
-  nama_pelanggan?: string;
-  metode_pengiriman?: string;
-  catatan?: string | null;
-  detail_pesanan: DetailPesanan[];
+  detail_pesanan: {
+    jumlah: number;
+    varian: {
+      nama_varian: string;
+      produk: {
+        nama_produk: string;
+        harga?: number | null;
+        foto_url?: string | null;
+      };
+    };
+  }[];
 }
 
-export default function PemilikPesananPage() {
+const easing = [0.23, 1, 0.32, 1] as const;
+
+export default function DaftarPesananPemilikPage() {
   const router = useRouter();
-  const [pesananList, setPesananList] = useState<Pesanan[]>([]);
+  const [orders, setOrders] = useState<OrderData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Pastikan hanya Pemilik yang bisa mengakses halaman ini
-    const role = getRole();
-    if (role !== "pemilik") {
-      router.replace("/beranda");
-      return;
-    }
+    fetchOrders();
+  }, []);
 
-    fetchPesanan();
-  }, [router]);
+  async function fetchOrders() {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("pesanan")
+      .select(`
+        id_pesanan,
+        tanggal_input,
+        status,
+        platform,
+        nama_pelanggan,
+        metode_pengiriman,
+        no_pesanan,
+        detail_pesanan (
+          jumlah,
+          varian (
+            nama_varian,
+            produk (
+              nama_produk,
+              harga,
+              foto_url
+            )
+          )
+        )
+      `)
+      .order("tanggal_input", { ascending: false });
 
-  async function fetchPesanan() {
-    try {
-      setLoading(true);
-      setError(null);
-      const res = await fetch("/api/pesanan");
-      if (!res.ok) {
-        throw new Error("Gagal mengambil data pesanan.");
-      }
-      const data = await res.json();
-      // Show only active orders (status = 'baru')
-      const active = (data || []).filter((p: any) => p.status === "baru");
-      setPesananList(active);
-    } catch (err: any) {
-      console.error("Error fetching pesanan:", err);
-      setError(err.message || "Terjadi kesalahan saat memuat data.");
-    } finally {
-      setLoading(false);
+    if (error) {
+      console.error("Error fetching orders:", error);
+    } else {
+      setOrders((data as any[]) || []);
     }
+    setLoading(false);
   }
 
-  function formatTanggal(isoString: string) {
-    const d = new Date(isoString);
-    return d.toLocaleDateString("id-ID", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  }
+  const activeOrders = orders.filter((o) => o.status === "baru");
+  const shippedOrders = orders.filter((o) => o.status === "dikirim" || o.status === "selesai");
+
+  const formattedOrders: OrderItem[] = orders.map((o) => {
+    const totalPrice = o.detail_pesanan.reduce((sum, d) => {
+      const price = d.varian?.produk?.harga || 0;
+      return sum + price * d.jumlah;
+    }, 0);
+
+    const firstDetail = o.detail_pesanan[0];
+    const productName = firstDetail
+      ? firstDetail.varian?.produk?.nama_produk || "Produk"
+      : "Pesanan";
+    const productNote = firstDetail
+      ? `${firstDetail.varian?.nama_varian || ""} ${o.detail_pesanan.length > 1 ? `(+${o.detail_pesanan.length - 1} item lain)` : ""}`
+      : "";
+    const totalQty = o.detail_pesanan.reduce((sum, d) => sum + d.jumlah, 0);
+    const image = firstDetail?.varian?.produk?.foto_url || null;
+
+    return {
+      id: o.no_pesanan || `#ORD-${o.id_pesanan.slice(0, 8).toUpperCase()}`,
+      customer: o.nama_pelanggan || "(Tanpa Nama)",
+      status: o.status,
+      productName,
+      productNote,
+      quantity: `${totalQty} Item`,
+      total: totalPrice,
+      placedAt: new Date(o.tanggal_input).toLocaleDateString("id-ID", {
+        day: "numeric",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+      image,
+      detailUrl: `/pemilik/pesanan/${o.id_pesanan}`,
+    };
+  });
 
   return (
-    <PullToRefresh onRefresh={fetchPesanan}>
-      <div className="flex flex-col min-h-screen bg-white">
-      {/* Main Container */}
-      <div className="flex-1 px-6 py-6 pb-[100px] flex flex-col gap-6 max-w-lg mx-auto w-full">
-        {/* Header */}
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1">
-            <h1
-              className="text-[30px] font-bold leading-[38px]"
-              style={{ color: "#191C1E", fontFamily: "Inter" }}
-            >
-              Daftar Pesanan Aktif
-            </h1>
-            <p className="text-base leading-6" style={{ color: "#3E484D", fontFamily: "Inter" }}>
-              Kelola pesanan yang belum dikirim dan butuh konfirmasi.
+    <div className="min-h-screen bg-gradient-to-b from-brand-50 via-canvas to-[#E4EEF0]">
+      <AppHeader storeName="Myko Pingpong" initial="W" />
+
+      <main className="px-5 pb-24 pt-6 max-w-md mx-auto space-y-6">
+        <section>
+          <p className="text-sm font-semibold text-brand-600">Manajemen pesanan</p>
+          <h1 className="mt-0.5 text-3xl font-extrabold tracking-tight text-brand-900">
+            Daftar Pesanan
+          </h1>
+          <p className="mt-1 text-sm text-slate-600">
+            Kelola pesanan masuk dan pantau status pengiriman.
+          </p>
+        </section>
+
+        {/* Ringkasan Pesanan Aktif Banner */}
+        <motion.section
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.28, ease: easing }}
+          className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-600 via-brand-800 to-brand-900 p-5 text-white shadow-lift"
+          aria-label="Ringkasan pesanan aktif"
+        >
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-gradient-to-b from-brand-400/40 to-transparent blur-2xl"
+          />
+          <div className="relative">
+            <p className="text-sm font-semibold text-brand-200">Total Pesanan Aktif</p>
+            <p className="mt-1 text-5xl font-extrabold leading-none tracking-tight">
+              {activeOrders.length}
             </p>
           </div>
+        </motion.section>
 
+        {/* Action Button: Input Pesanan Masuk */}
+        <motion.div
+          whileTap={{ scale: 0.98 }}
+          transition={{ duration: 0.12, ease: easing }}
+        >
           <Link
             href="/pemilik/pesanan/baru"
-            className="inline-flex items-center gap-2 h-11 px-6 text-sm font-semibold text-white rounded-lg self-start transition-opacity hover:opacity-90 cursor-pointer"
-            style={{
-              backgroundColor: "#00647C",
-              boxShadow: "0px 1px 2px rgba(0,0,0,0.05)",
-            }}
+            className="relative flex w-full items-center justify-center gap-2.5 overflow-hidden rounded-2xl bg-gradient-to-r from-brand-600 via-brand-700 to-brand-900 px-5 py-4 text-lg font-bold text-white shadow-lift transition-opacity duration-150 ease-out hover:opacity-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700"
           >
-            Input Pesanan Masuk
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M5 12h14" />
-              <path d="M12 5v14" />
-            </svg>
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/20 to-transparent"
+            />
+            <PlusIcon className="relative h-6 w-6" strokeWidth={2.6} />
+            <span className="relative">Input Pesanan Masuk</span>
           </Link>
-        </div>
+        </motion.div>
 
-        {error && (
-          <div className="flex items-start gap-2 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-red-800">Error</p>
-              <p className="text-sm text-red-700">{error}</p>
-            </div>
-            <button
-              onClick={fetchPesanan}
-              className="text-xs font-semibold px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-800 rounded transition-colors"
-            >
-              Coba Lagi
-            </button>
-          </div>
-        )}
-
+        {/* List of Orders */}
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <div className="w-8 h-8 border-3 border-primary/30 border-t-primary rounded-full animate-spin" />
+            <div className="w-8 h-8 border-3 border-brand-500/30 border-t-brand-600 rounded-full animate-spin" />
           </div>
+        ) : formattedOrders.length > 0 ? (
+          <ul className="space-y-4">
+            {formattedOrders.map((order, index) => (
+              <OrderCard key={order.id} order={order} index={index} />
+            ))}
+          </ul>
         ) : (
-          <>
-            {/* Order Statistics Bento (Mini) - Figma Style */}
-            <div className="flex flex-col gap-4">
-              {/* Card 1: Total Active Orders */}
-              <div
-                className="rounded-2xl p-6 flex flex-col justify-between"
-                style={{
-                  height: "130px",
-                  backgroundColor: "#007F9D",
-                  boxShadow: "0px 4px 12px rgba(0,0,0,0.05)",
-                }}
-              >
-                <span className="text-sm font-semibold text-[#FAFDFF]" style={{ fontFamily: "Inter" }}>
-                  Total Pesanan Aktif
-                </span>
-                <span className="text-[48px] font-bold leading-[58px] text-[#FAFDFF]" style={{ fontFamily: "Inter" }}>
-                  {pesananList.length}
-                </span>
-              </div>
-
-              {/* Card 2: Prioritas Tinggi */}
-              <div
-                className="rounded-2xl p-6 flex flex-col justify-between border bg-white"
-                style={{
-                  height: "146px",
-                  borderColor: "#BDC8CE",
-                  boxShadow: "0px 4px 12px rgba(0,0,0,0.05)",
-                }}
-              >
-                <div className="flex flex-col gap-1">
-                  <span className="text-sm font-semibold text-[#3E484D]" style={{ fontFamily: "Inter" }}>
-                    PRIORITAS TINGGI
-                  </span>
-                  <span className="text-2xl font-semibold text-[#BA1A1A]" style={{ fontFamily: "Inter" }}>
-                    {pesananList.length} Pesanan
-                  </span>
-                </div>
-                <span className="text-sm font-semibold text-[#BA1A1A]" style={{ fontFamily: "Inter" }}>
-                  Perlu segera diproses
-                </span>
-              </div>
-            </div>
-
-            {/* Orders List */}
-            {pesananList.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 gap-3">
-                <div
-                  className="w-16 h-16 rounded-full flex items-center justify-center"
-                  style={{ backgroundColor: "rgba(236, 254, 255, 0.5)" }}
-                >
-                  <svg
-                    width="32"
-                    height="32"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="#0891B2"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
-                    <path d="M14 2v4a2 2 0 0 0 2 2h4" />
-                    <circle cx="10" cy="13" r="1" />
-                    <circle cx="10" cy="17" r="1" />
-                    <path d="M14 13h2" />
-                    <path d="M14 17h2" />
-                  </svg>
-                </div>
-                <p className="text-base font-semibold" style={{ color: "#191C1E" }}>
-                  Tidak Ada Pesanan Aktif
-                </p>
-                <p className="text-sm text-center" style={{ color: "#6E797E" }}>
-                  Semua pesanan masuk sudah dikirim atau belum di-input.
-                </p>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-6">
-                {pesananList.map((pesanan) => {
-                  const totalPrice = pesanan.detail_pesanan.reduce((sum, d) => {
-                    const price = d.varian.produk.harga || 0;
-                    return sum + (price * d.jumlah);
-                  }, 0);
-
-                  const firstItem = pesanan.detail_pesanan[0];
-                  const firstItemText = firstItem 
-                    ? `${firstItem.varian.produk.nama_produk} (${firstItem.varian.nama_varian})` 
-                    : "-";
-                  const qtyText = firstItem 
-                    ? `Jumlah: ${firstItem.jumlah} Unit` 
-                    : "";
-
-                  return (
-                    <div
-                      key={pesanan.id_pesanan}
-                      className="bg-white rounded-2xl border border-[#BDC8CE] overflow-hidden flex flex-col"
-                      style={{ boxShadow: "0px 4px 12px rgba(0, 0, 0, 0.05)" }}
-                    >
-                      {/* Card Body */}
-                      <div className="p-6 flex flex-col gap-4">
-                        {/* Row 1: Header Info & Status Badge */}
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex flex-col min-w-0 pr-2">
-                            <span className="text-xs text-[#6E797E]">Order ID:</span>
-                            <span className="text-base font-bold text-[#00647C] leading-5">
-                              {pesanan.no_pesanan || `#ORD-${pesanan.id_pesanan.slice(0, 8).toUpperCase()}`}
-                            </span>
-                            <h3 className="text-lg font-semibold text-[#191C1E] mt-1.5 leading-6">
-                              {pesanan.nama_pelanggan || "(Tanpa nama)"}
-                            </h3>
-                          </div>
-
-                          {/* Menunggu Konfirmasi Badge */}
-                          <span
-                            className="text-xs font-bold px-4 py-1.5 rounded-full shrink-0 text-center"
-                            style={{
-                              backgroundColor: "#FFDCBF",
-                              color: "#2D1600",
-                            }}
-                          >
-                            Menunggu Konfirmasi
-                          </span>
-                        </div>
-
-                        {/* Image Placeholder - Figma style */}
-                        <div className="w-full h-[128px] bg-[#ECEEF0] rounded-lg flex items-center justify-center overflow-hidden shrink-0 border border-[#E0E3E5]">
-                          <svg
-                            width="40"
-                            height="40"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="#94A3B8"
-                            strokeWidth="1.5"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          >
-                            <circle cx="12" cy="12" r="10" />
-                            <path d="m6 12 6-6 6 6" />
-                            <path d="m12 6v12" />
-                          </svg>
-                        </div>
-
-                        {/* Details Grey Box */}
-                        <div className="bg-[#ECEEF0] rounded-lg p-4 flex flex-col gap-3">
-                          <div>
-                            <span className="text-xs font-semibold text-[#3E484D]">
-                              Produk
-                            </span>
-                            <p className="text-sm font-medium text-[#191C1E] mt-0.5">
-                              {firstItemText}
-                            </p>
-                            <p className="text-xs text-[#3E484D] mt-0.5">
-                              {qtyText}
-                            </p>
-                            {pesanan.detail_pesanan.length > 1 && (
-                              <p className="text-xs font-semibold text-[#00647C] mt-1">
-                                + {pesanan.detail_pesanan.length - 1} item lainnya
-                              </p>
-                            )}
-                          </div>
-
-                          <div className="pt-2 border-t border-[#D1D5DB] flex flex-col">
-                            <span className="text-xs font-semibold text-[#3E484D]">
-                              Total Pembayaran
-                            </span>
-                            <span className="text-base font-bold text-[#191C1E] mt-0.5">
-                              {totalPrice > 0 ? `Rp ${totalPrice.toLocaleString("id-ID")}` : "Rp -"}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Footer Action Bar - Figma style single outline button */}
-                      <div className="bg-[#F2F4F6] border-t border-[#BDC8CE] px-6 py-4 flex items-center shrink-0">
-                        <Link
-                          href={`/pemilik/pesanan/${pesanan.id_pesanan}`}
-                          className="h-11 px-6 border border-[#00647C] text-[#00647C] rounded-lg flex items-center justify-center text-xs font-semibold hover:bg-[#00647C]/5 transition-colors"
-                          style={{ width: "125px" }}
-                        >
-                          Lihat Detail
-                        </Link>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </>
+          <div className="rounded-3xl border border-white/70 bg-gradient-to-b from-white to-brand-50 p-8 text-center shadow-card">
+            <p className="text-base font-extrabold text-brand-900">Belum ada pesanan</p>
+            <p className="mt-1 text-sm text-slate-600">
+              Input pesanan pertama Anda menggunakan tombol di atas.
+            </p>
+          </div>
         )}
-      </div>
-      </div>
-    </PullToRefresh>
+      </main>
+    </div>
   );
 }

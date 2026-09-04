@@ -94,19 +94,19 @@ export function ProductCard({ product, index }: ProductCardProps) {
             isLow ? 'border-alert-100' : 'border-brand-100',
           ].join(' ')}
         >
-          <span className="flex items-center gap-2">
+          <span className="flex items-center gap-2.5">
             <span
               aria-hidden="true"
               className={[
-                'h-2.5 w-2.5 rounded-full',
+                'h-4 w-4 rounded-full shrink-0 shadow-sm',
                 isLow
-                  ? 'bg-gradient-to-br from-alert-200 to-alert-600'
-                  : 'bg-gradient-to-br from-brand-400 to-positive-600',
+                  ? 'bg-gradient-to-br from-alert-200 to-alert-600 ring-2 ring-alert-100'
+                  : 'bg-gradient-to-br from-brand-400 to-positive-600 ring-2 ring-positive-50',
               ].join(' ')}
             />
             <span
               className={[
-                'text-sm font-bold',
+                'text-lg font-extrabold leading-tight',
                 isLow ? 'text-alert-700' : 'text-brand-900',
               ].join(' ')}
             >
