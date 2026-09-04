@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
 :root {
@@ -5,10 +6,33 @@
   --foreground: #191C1E;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-inter);
+@theme {
+  --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+
+  --color-brand-50: #EAF9FC;
+  --color-brand-100: #D2F1F7;
+  --color-brand-200: #B4EAF4;
+  --color-brand-300: #7FD8E8;
+  --color-brand-400: #38B3CC;
+  --color-brand-500: #0E8BA8;
+  --color-brand-600: #0A7189;
+  --color-brand-700: #075467;
+  --color-brand-800: #054252;
+  --color-brand-900: #03303C;
+
+  --color-canvas: #F1F5F6;
+
+  --color-alert-50: #FEECEA;
+  --color-alert-100: #FBD5D1;
+  --color-alert-200: #F7B4AD;
+  --color-alert-600: #C62828;
+  --color-alert-700: #9F1F1F;
+
+  --color-positive-50: #E8F7EE;
+  --color-positive-600: #137A45;
+
+  --shadow-card: 0 1px 2px rgba(3, 48, 60, 0.04), 0 8px 24px -12px rgba(3, 48, 60, 0.18);
+  --shadow-lift: 0 10px 30px -12px rgba(5, 66, 82, 0.45);
 
   /* Primary brand colors from Figma */
   --color-primary: #00647C;
@@ -32,7 +56,7 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-inter), system-ui, sans-serif;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
 }
 
 @keyframes fadeIn {

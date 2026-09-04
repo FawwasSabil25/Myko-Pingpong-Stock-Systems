@@ -3,31 +3,37 @@
 import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { motion } from "framer-motion";
+import { PackageSearchIcon, PlusIcon } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { AppHeader } from "@/components/AppHeader";
+import { ProductFilters } from "@/components/ProductFilters";
+import { ProductCard, type Product } from "@/components/ProductCard";
 
-interface Varian {
+interface VarianData {
   id_varian: string;
   nama_varian: string;
   jumlah_stok: number;
   reorder_point: number;
+  lokasi_penyimpanan?: string | null;
 }
 
-interface Produk {
+interface ProdukData {
   id_produk: string;
   nama_produk: string;
   kategori: string | null;
   created_at: string;
   harga?: number | null;
   foto_url?: string | null;
-  varian: Varian[];
+  varian: VarianData[];
 }
 
 export default function ProdukPage() {
   const router = useRouter();
-  const [produkList, setProdukList] = useState<Produk[]>([]);
+  const [produkList, setProdukList] = useState<ProdukData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [activeKategori, setActiveKategori] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [category, setCategory] = useState<string>("Semua Kategori");
 
   useEffect(() => {
     fetchProduk();
@@ -43,373 +49,134 @@ export default function ProdukPage() {
     if (error) {
       console.error("Error fetching produk:", error);
     } else {
-      setProdukList((data as Produk[]) || []);
+      setProdukList((data as ProdukData[]) || []);
     }
     setLoading(false);
   }
 
-  // Extract unique categories for filter pills
+  // Extract unique categories
   const categories = useMemo(() => {
     const cats = new Set<string>();
     produkList.forEach((p) => {
       if (p.kategori) cats.add(p.kategori);
     });
-    return Array.from(cats).sort();
+    return ["Semua Kategori", ...Array.from(cats).sort()];
   }, [produkList]);
 
-  // Filtered list
+  // Map to ProductCard structure & filter
+  const formattedProducts = useMemo(() => {
+    return produkList.map((p) => {
+      const totalStock = p.varian.reduce((sum, v) => sum + v.jumlah_stok, 0);
+      const minRop = p.varian.length > 0 ? Math.max(...p.varian.map((v) => v.reorder_point)) : 0;
+      const isLow = p.varian.some((v) => v.reorder_point > 0 && v.jumlah_stok <= v.reorder_point);
+
+      const mappedProduct: Product = {
+        id: p.id_produk,
+        name: p.nama_produk,
+        category: p.kategori || "Umum",
+        price: p.harga || 0,
+        stock: totalStock,
+        stockUnit: "pcs",
+        lowStockThreshold: isLow ? totalStock : minRop - 1, // trigger isLow logic
+        image: p.foto_url,
+        addedAt: new Date(p.created_at).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" }),
+        variants: p.varian.map((v) => ({
+          code: v.nama_varian,
+          location: v.lokasi_penyimpanan || "-",
+          stock: v.jumlah_stok,
+          rop: v.reorder_point,
+        })),
+      };
+
+      return { mappedProduct, isLow };
+    });
+  }, [produkList]);
+
   const filtered = useMemo(() => {
-    const list = produkList.filter((p) => {
-      const matchSearch =
-        !search ||
-        p.nama_produk.toLowerCase().includes(search.toLowerCase());
-      const matchKategori =
-        !activeKategori || p.kategori === activeKategori;
-      return matchSearch && matchKategori;
+    const term = query.trim().toLowerCase();
+    const list = formattedProducts.filter(({ mappedProduct }) => {
+      const matchesCategory =
+        category === "Semua Kategori" || mappedProduct.category === category;
+      const matchesQuery = mappedProduct.name.toLowerCase().includes(term);
+      return matchesCategory && matchesQuery;
     });
 
-    // Sort: products with any variant with stock <= reorder_point go to the top
-    return [...list].sort((a, b) => {
-      const aLow = hasLowStockVariant(a.varian) ? 1 : 0;
-      const bLow = hasLowStockVariant(b.varian) ? 1 : 0;
-      return bLow - aLow;
-    });
-  }, [produkList, search, activeKategori]);
+    // Sort products with low stock to top
+    return list.sort((a, b) => (b.isLow ? 1 : 0) - (a.isLow ? 1 : 0));
+  }, [formattedProducts, query, category]);
 
-  function getTotalStok(varian: Varian[]) {
-    return varian.reduce((sum, v) => sum + v.jumlah_stok, 0);
-  }
-
-  // SR-06: Check if any variant is at or below reorder point
-  function hasLowStockVariant(varian: Varian[]) {
-    return varian.some((v) => v.reorder_point > 0 && v.jumlah_stok <= v.reorder_point);
-  }
+  const lowCount = formattedProducts.filter((p) => p.isLow).length;
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#F4F8F9]">
-      {/* Main Canvas */}
-      <div className="flex flex-col gap-6 p-6">
-        {/* Page Header & Actions */}
-        <div className="flex flex-col gap-4 pb-4">
-          <div className="flex flex-col gap-1">
-            <h1
-              className="text-[30px] font-bold leading-[38px]"
-              style={{ color: "#191C1E" }}
-            >
-              Kelola Produk
-            </h1>
-            <p className="text-base leading-6" style={{ color: "#3E484D" }}>
-              Manajemen data produk dan katalog barang.
-            </p>
-          </div>
+    <div className="min-h-screen bg-gradient-to-b from-brand-50 via-canvas to-[#E4EEF0]">
+      <AppHeader storeName="Myko Pingpong" initial="W" />
 
+      <main className="px-5 pb-24 pt-6 max-w-md mx-auto space-y-6">
+        <section>
+          <p className="text-sm font-semibold text-brand-600">Katalog barang</p>
+          <h1 className="mt-0.5 text-3xl font-extrabold tracking-tight text-brand-900">
+            Kelola Produk
+          </h1>
+          <p className="mt-1 text-sm text-slate-600">
+            Manajemen data produk dan katalog barang.
+          </p>
+          {lowCount > 0 && (
+            <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-alert-50 to-alert-100 px-3 py-1 text-xs font-bold text-alert-700">
+              {lowCount} produk perlu restok
+            </p>
+          )}
+        </section>
+
+        <motion.div
+          whileTap={{ scale: 0.98 }}
+          transition={{ duration: 0.12, ease: [0.23, 1, 0.32, 1] }}
+        >
           <Link
             href="/produk/tambah"
-            className="w-full flex items-center justify-center gap-2 h-12 text-sm font-semibold text-white rounded-xl transition-opacity hover:opacity-90"
-            style={{
-              backgroundColor: "#00647C",
-              boxShadow: "0px 1px 2px rgba(0,0,0,0.05)",
-            }}
+            className="relative flex w-full items-center justify-center gap-2.5 overflow-hidden rounded-2xl bg-gradient-to-r from-brand-600 via-brand-700 to-brand-900 px-5 py-4 text-lg font-bold text-white shadow-lift transition-opacity duration-150 ease-out hover:opacity-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700"
           >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M5 12h14" />
-              <path d="M12 5v14" />
-            </svg>
-            Tambah Produk Baru
-          </Link>
-        </div>
-
-        {/* Filters & Search */}
-        <div
-          className="flex flex-col gap-4 p-4 bg-[#007F9D]/20 rounded-xl"
-          style={{ boxShadow: "0px 4px 12px rgba(0,0,0,0.05)" }}
-        >
-          {/* Search input */}
-          <div
-            className="flex items-center h-[49px] bg-white border border-[#BDC8CE] rounded-lg px-3 gap-2"
-          >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#6E797E"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle cx="11" cy="11" r="8" />
-              <path d="m21 21-4.3-4.3" />
-            </svg>
-            <input
-              type="text"
-              placeholder="Cari nama produk..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="flex-1 bg-transparent text-base outline-none placeholder:text-[#6E797E]"
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/20 to-transparent"
             />
-            {search && (
-              <button
-                type="button"
-                onClick={() => setSearch("")}
-                className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-black/5 transition-colors cursor-pointer"
-              >
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="#6E797E"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M18 6 6 18" />
-                  <path d="m6 6 12 12" />
-                </svg>
-              </button>
-            )}
-          </div>
+            <PlusIcon className="relative h-6 w-6" strokeWidth={2.6} />
+            <span className="relative">Tambah Produk Baru</span>
+          </Link>
+        </motion.div>
 
-          {/* Category pills */}
-          {categories.length > 0 && (
-            <div className="flex gap-2 flex-wrap">
-              <button
-                type="button"
-                onClick={() => setActiveKategori(null)}
-                className={`h-[38px] px-4 rounded-full text-sm font-semibold transition-colors cursor-pointer ${
-                  activeKategori === null
-                    ? "bg-[#00647C] text-white border border-[#00647C]"
-                    : "bg-white border border-[#BDC8CE] text-[#191C1E]"
-                }`}
-              >
-                Semua Kategori
-              </button>
-              {categories.map((cat) => (
-                <button
-                  key={cat}
-                  type="button"
-                  onClick={() =>
-                    setActiveKategori(activeKategori === cat ? null : cat)
-                  }
-                  className={`h-[38px] px-4 rounded-full text-sm font-semibold transition-colors cursor-pointer ${
-                    activeKategori === cat
-                      ? "bg-[#00647C] text-white border border-[#00647C]"
-                      : "bg-white border border-[#BDC8CE] text-[#191C1E]"
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        <ProductFilters
+          query={query}
+          onQueryChange={setQuery}
+          activeCategory={category}
+          onCategoryChange={setCategory}
+          categories={categories}
+          resultCount={filtered.length}
+        />
 
-        {/* Product List */}
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <div className="w-8 h-8 border-3 border-primary/30 border-t-primary rounded-full animate-spin" />
+            <div className="w-8 h-8 border-3 border-brand-500/30 border-t-brand-600 rounded-full animate-spin" />
           </div>
-        ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <svg
-              width="48"
-              height="48"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#BDC8CE"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="m7.5 4.27 9 5.15" />
-              <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
-              <path d="m3.3 7 8.7 5 8.7-5" />
-              <path d="M12 22V12" />
-            </svg>
-            <p className="text-sm" style={{ color: "#6E797E" }}>
-              {search || activeKategori
-                ? "Tidak ada produk yang cocok dengan filter."
-                : "Belum ada produk. Tambah produk pertama Anda!"}
-            </p>
-            {(search || activeKategori) && (
-              <button
-                type="button"
-                onClick={() => {
-                  setSearch("");
-                  setActiveKategori(null);
-                }}
-                className="text-sm font-medium px-4 py-2 rounded-lg transition-colors cursor-pointer"
-                style={{
-                  color: "#00647C",
-                  backgroundColor: "rgba(0,100,124,0.08)",
-                }}
-              >
-                Reset Filter
-              </button>
-            )}
-          </div>
+        ) : filtered.length > 0 ? (
+          <ul className="space-y-4">
+            {filtered.map(({ mappedProduct }, index) => (
+              <ProductCard key={mappedProduct.id} product={mappedProduct} index={index} />
+            ))}
+          </ul>
         ) : (
-          <div className="flex flex-col gap-4">
-            {filtered.map((produk) => {
-              const totalStok = getTotalStok(produk.varian);
-              const varianCount = produk.varian.length;
-              const isLow = hasLowStockVariant(produk.varian);
-
-              return (
-                <button
-                  key={produk.id_produk}
-                  type="button"
-                  onClick={() => router.push(`/produk/${produk.id_produk}`)}
-                  className="w-full text-left rounded-xl p-[17px] flex flex-col gap-4 transition-shadow hover:shadow-md cursor-pointer border"
-                  style={{
-                    boxShadow: "0px 4px 12px rgba(0,0,0,0.05)",
-                    backgroundColor: isLow ? "#FFDAD6" : "#FFFFFF",
-                    borderColor: isLow ? "rgba(186, 26, 26, 0.2)" : "transparent",
-                  }}
-                >
-                  {/* Top row: icon + info */}
-                  <div className="flex gap-4">
-                    {/* Product image or placeholder */}
-                    <div className="w-20 h-20 rounded-lg bg-[#ECEEF0] overflow-hidden flex items-center justify-center shrink-0 border border-slate-100">
-                      {produk.foto_url ? (
-                        <img
-                          src={produk.foto_url}
-                          alt={produk.nama_produk}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <svg
-                          width="32"
-                          height="32"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="#94A3B8"
-                          strokeWidth="1.5"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <path d="m7.5 4.27 9 5.15" />
-                          <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
-                          <path d="m3.3 7 8.7 5 8.7-5" />
-                          <path d="M12 22V12" />
-                        </svg>
-                      )}
-                    </div>
-
-                    {/* Info */}
-                    <div className="flex-1 flex flex-col gap-1 min-w-0">
-                      {/* Category badge */}
-                      {produk.kategori && (
-                        <span
-                          className="self-start text-[10px] leading-[15px] px-2 py-0.5 rounded-sm"
-                          style={{
-                            backgroundColor: "#E0E3E5",
-                            color: "#3E484D",
-                          }}
-                        >
-                          {produk.kategori.toUpperCase()}
-                        </span>
-                      )}
-                      {/* Name */}
-                      <h3
-                        className="text-xl font-medium leading-[25px] truncate"
-                        style={{ color: "#191C1E" }}
-                      >
-                        {produk.nama_produk}
-                      </h3>
-                      {/* Variant count & Price */}
-                      <div className="flex items-center justify-between mt-1">
-                        <span className="text-xs" style={{ color: "#6E797E" }}>
-                          {varianCount} varian
-                        </span>
-                        {produk.harga !== null && produk.harga !== undefined && (
-                          <span className="text-sm font-extrabold text-[#00647C]">
-                            Rp {produk.harga.toLocaleString("id-ID")}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Arrow */}
-                    <div className="flex items-start pt-1">
-                      <svg
-                        width="12"
-                        height="12"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="#94A3B8"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="m9 18 6-6-6-6" />
-                      </svg>
-                    </div>
-                  </div>
-
-                  {/* Bottom row: stock info + badge */}
-                  <div
-                    className="flex items-center justify-between pt-3 border-t w-full"
-                    style={{
-                      borderColor: isLow ? "rgba(186, 26, 26, 0.2)" : "#E0E3E5",
-                    }}
-                  >
-                    {/* Stock indicator */}
-                    <div className="flex items-center gap-2.5">
-                      <div
-                        className="w-[20px] h-[20px] rounded-full shrink-0"
-                        style={{
-                          backgroundColor: isLow
-                            ? "#EF4444"
-                            : totalStok > 0
-                              ? "#22C55E"
-                              : "#EF4444",
-                        }}
-                      />
-                      <span
-                        className="text-[20px] font-semibold leading-[28px]"
-                        style={{
-                          color: isLow ? "#BA1A1A" : "#3E484D",
-                        }}
-                      >
-                        Stok: {totalStok} pcs {isLow && "(Rendah)"}
-                      </span>
-                    </div>
-
-                    <span
-                      className="text-xs font-medium px-2 py-1 rounded-md"
-                      style={{
-                        backgroundColor: isLow
-                          ? "rgba(239,68,68,0.1)"
-                          : totalStok > 0
-                            ? "rgba(34,197,94,0.1)"
-                            : "rgba(239,68,68,0.1)",
-                        color: isLow
-                          ? "#DC2626"
-                          : totalStok > 0
-                            ? "#16A34A"
-                            : "#DC2626",
-                      }}
-                    >
-                      {isLow ? "Stok Rendah" : totalStok > 0 ? "Tersedia" : "Habis"}
-                    </span>
-                  </div>
-                </button>
-              );
-            })}
+          <div className="rounded-3xl border border-white/70 bg-gradient-to-b from-white to-brand-50 p-8 text-center shadow-card">
+            <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-brand-100 to-brand-300">
+              <PackageSearchIcon className="h-7 w-7 text-brand-700" aria-hidden="true" />
+            </span>
+            <p className="mt-4 text-base font-extrabold text-brand-900">
+              Produk tidak ditemukan
+            </p>
+            <p className="mt-1 text-sm text-slate-600">
+              Coba ubah kata kunci atau pilih kategori lain.
+            </p>
           </div>
         )}
-      </div>
+      </main>
     </div>
   );
 }

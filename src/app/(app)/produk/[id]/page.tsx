@@ -3,8 +3,11 @@
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
+import { motion } from "framer-motion";
+import { PencilLineIcon, Trash2Icon, PackageIcon } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import TopAppBar from "@/components/TopAppBar";
+import { DetailHeader } from "@/components/DetailHeader";
+import { VariantStockTable, type ProductVariant } from "@/components/VariantStockTable";
 import { ConfirmDialog, SuccessDialog } from "@/components/Dialog";
 
 interface Varian {
@@ -25,6 +28,14 @@ interface Produk {
   foto_url?: string | null;
   varian: Varian[];
 }
+
+const currency = new Intl.NumberFormat("id-ID", {
+  style: "currency",
+  currency: "IDR",
+  maximumFractionDigits: 0,
+});
+
+const easing = [0.23, 1, 0.32, 1] as const;
 
 export default function DetailProdukPage() {
   const router = useRouter();
@@ -79,7 +90,6 @@ export default function DetailProdukPage() {
       .eq("id_produk", id);
 
     if (error) {
-      // Convert error to a plain object string to bypass Turbopack console interception
       const errString = JSON.stringify(error, Object.getOwnPropertyNames(error), 2);
       console.error("RAW Error deleting produk:", errString);
       setDeleting(false);
@@ -98,17 +108,12 @@ export default function DetailProdukPage() {
     setShowDeleteSuccess(true);
   }
 
-  function getTotalStok() {
-    if (!produk) return 0;
-    return produk.varian.reduce((sum, v) => sum + v.jumlah_stok, 0);
-  }
-
   if (loading) {
     return (
-      <div className="flex flex-col min-h-screen bg-white">
-        <TopAppBar title="Detail Produk" backHref="/produk" />
-        <div className="flex-1 flex items-center justify-center">
-          <div className="w-8 h-8 border-3 border-primary/30 border-t-primary rounded-full animate-spin" />
+      <div className="min-h-screen bg-gradient-to-b from-brand-50 via-canvas to-[#E4EEF0]">
+        <DetailHeader title="Detail Produk" backTo="/produk" />
+        <div className="flex items-center justify-center py-20">
+          <div className="w-8 h-8 border-3 border-brand-500/30 border-t-brand-600 rounded-full animate-spin" />
         </div>
       </div>
     );
@@ -116,295 +121,141 @@ export default function DetailProdukPage() {
 
   if (!produk) {
     return (
-      <div className="flex flex-col min-h-screen bg-white">
-        <TopAppBar title="Detail Produk" backHref="/produk" />
-        <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6">
-          <p className="text-base font-medium" style={{ color: "#191C1E" }}>
-            Produk tidak ditemukan
-          </p>
-          <Link
-            href="/produk"
-            className="text-sm font-semibold"
-            style={{ color: "#00647C" }}
-          >
-            Kembali ke daftar produk
-          </Link>
-        </div>
+      <div className="min-h-screen bg-gradient-to-b from-brand-50 via-canvas to-[#E4EEF0]">
+        <DetailHeader title="Produk" backTo="/produk" />
+        <main className="px-5 py-6 max-w-md mx-auto">
+          <div className="rounded-3xl border border-white/70 bg-gradient-to-b from-white to-brand-50 p-8 text-center shadow-card">
+            <p className="text-base font-extrabold text-brand-900">Produk tidak ditemukan</p>
+            <p className="mt-1 text-sm text-slate-600">
+              Data produk mungkin sudah dihapus dari katalog.
+            </p>
+            <Link
+              href="/produk"
+              className="mt-5 inline-flex rounded-2xl bg-gradient-to-r from-brand-600 to-brand-900 px-5 py-3 text-sm font-bold text-white shadow-lift transition-opacity duration-150 ease-out hover:opacity-95"
+            >
+              Kembali ke katalog
+            </Link>
+          </div>
+        </main>
       </div>
     );
   }
 
-  const totalStok = getTotalStok();
+  const totalStock = produk.varian.reduce((sum, v) => sum + v.jumlah_stok, 0);
+  const lowVariantsCount = produk.varian.filter(
+    (v) => v.reorder_point > 0 && v.jumlah_stok <= v.reorder_point
+  ).length;
+  const isLow = lowVariantsCount > 0;
   const varianWithStock = produk.varian.filter((v) => v.jumlah_stok > 0);
 
-  return (
-    <div className="flex flex-col min-h-screen bg-white">
-      <TopAppBar title={produk.nama_produk} backHref="/produk" />
+  const mappedVariants: ProductVariant[] = produk.varian.map((v) => ({
+    code: v.nama_varian,
+    location: v.lokasi_penyimpanan || "-",
+    stock: v.jumlah_stok,
+    rop: v.reorder_point,
+  }));
 
-      <div className="flex-1 px-6 py-6 flex flex-col gap-6">
-        {/* Product Info Card */}
-        <div
-          className="bg-white rounded-xl p-5 flex flex-col gap-4"
-          style={{ boxShadow: "0px 4px 12px rgba(0,0,0,0.05)" }}
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-brand-50 via-canvas to-[#E4EEF0]">
+      <DetailHeader title={produk.nama_produk} backTo="/produk" />
+
+      <main className="px-5 pb-24 pt-6 max-w-md mx-auto space-y-6">
+        {/* Ringkasan produk */}
+        <motion.section
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.28, ease: easing }}
+          className={[
+            'rounded-3xl border p-4 shadow-card',
+            isLow
+              ? 'border-alert-100 bg-gradient-to-br from-alert-50 via-alert-50 to-alert-100'
+              : 'border-white/70 bg-gradient-to-br from-white via-white to-brand-100',
+          ].join(' ')}
+          aria-label="Ringkasan produk"
         >
-          <div className="flex items-start gap-4">
-            {/* Product image or placeholder */}
-            <div className="w-20 h-20 rounded-lg bg-[#ECEEF0] overflow-hidden flex items-center justify-center shrink-0 border border-slate-100">
-              {produk.foto_url ? (
-                <img
-                  src={produk.foto_url}
-                  alt={produk.nama_produk}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <svg
-                  width="32"
-                  height="32"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="#94A3B8"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="m7.5 4.27 9 5.15" />
-                  <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
-                  <path d="m3.3 7 8.7 5 8.7-5" />
-                  <path d="M12 22V12" />
-                </svg>
-              )}
-            </div>
-            <div className="flex-1 flex flex-col gap-1 min-w-0">
-              {produk.kategori && (
-                <span
-                  className="self-start text-[10px] leading-[15px] px-2 py-0.5 rounded-sm font-semibold"
-                  style={{ backgroundColor: "#E0E3E5", color: "#3E484D" }}
-                >
-                  {produk.kategori.toUpperCase()}
-                </span>
-              )}
-              <h2
-                className="text-xl font-bold leading-7 truncate mt-1"
-                style={{ color: "#191C1E" }}
-              >
+          <div className="flex gap-4">
+            {produk.foto_url ? (
+              <img
+                src={produk.foto_url}
+                alt={produk.nama_produk}
+                className="h-24 w-24 shrink-0 rounded-2xl border border-white/70 bg-white object-cover shadow-card"
+              />
+            ) : (
+              <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-2xl border border-white/70 bg-white text-brand-500 shadow-card">
+                <PackageIcon className="h-10 w-10" />
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <span className="inline-flex rounded-md bg-gradient-to-r from-brand-600 to-brand-900 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                {produk.kategori || 'Umum'}
+              </span>
+              <h2 className="mt-1.5 text-lg font-extrabold leading-snug text-brand-900">
                 {produk.nama_produk}
               </h2>
               {produk.harga !== null && produk.harga !== undefined && (
-                <p className="text-base font-extrabold text-[#00647C] mt-0.5">
-                  Rp {produk.harga.toLocaleString("id-ID")}
+                <p className="mt-1 text-base font-bold text-brand-600">
+                  {currency.format(produk.harga)}
                 </p>
               )}
-              <p className="text-xs mt-1" style={{ color: "#6E797E" }}>
-                Ditambahkan{" "}
-                {new Date(produk.created_at).toLocaleDateString("id-ID", {
-                  day: "numeric",
-                  month: "long",
-                  year: "numeric",
-                })}
+              <p className="mt-1.5 text-[11px] font-medium text-slate-500">
+                Ditambahkan {new Date(produk.created_at).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}
               </p>
             </div>
           </div>
 
-          {/* Stock summary */}
-          <div className="flex items-center gap-3 pt-3 border-t border-[#E0E3E5]">
-            <div
-              className="w-2 h-2 rounded-full"
-              style={{
-                backgroundColor: totalStok > 0 ? "#22C55E" : "#EF4444",
-              }}
-            />
-            <span
-              className="text-base font-semibold"
-              style={{ color: "#191C1E" }}
-            >
-              Total Stok: {totalStok} pcs
+          <div className={['mt-4 flex items-center justify-between gap-3 border-t pt-3', isLow ? 'border-alert-100' : 'border-brand-100'].join(' ')}>
+            <span className="flex items-center gap-2">
+              <span aria-hidden="true" className={['h-2.5 w-2.5 rounded-full', isLow ? 'bg-gradient-to-br from-alert-200 to-alert-600' : 'bg-gradient-to-br from-brand-400 to-positive-600'].join(' ')} />
+              <span className={['text-sm font-bold', isLow ? 'text-alert-700' : 'text-brand-900'].join(' ')}>
+                Total Stok: {totalStock} pcs
+              </span>
             </span>
           </div>
-        </div>
+        </motion.section>
 
-        {/* Stok per Varian — UC-02 */}
-        <div className="flex flex-col gap-3">
-          <h3
-            className="text-lg font-semibold leading-6"
-            style={{ color: "#00647C" }}
-          >
-            Stok per Varian
-          </h3>
+        {/* Stok per Varian */}
+        <section aria-labelledby="variant-title" className="space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <h2 id="variant-title" className="text-lg font-extrabold tracking-tight text-brand-900">
+              Stok per Varian
+            </h2>
+            {lowVariantsCount > 0 && (
+              <span className="rounded-full bg-gradient-to-r from-alert-50 to-alert-100 px-3 py-1 text-xs font-bold text-alert-700">
+                {lowVariantsCount} varian rendah
+              </span>
+            )}
+          </div>
+          <VariantStockTable variants={mappedVariants} />
+          <p className="text-[11px] font-medium text-slate-500">
+            ROP = titik pemesanan ulang. Varian di bawah ROP ditandai rendah.
+          </p>
+        </section>
 
-          {produk.varian.length === 0 ? (
-            <p className="text-sm py-4" style={{ color: "#6E797E" }}>
-              Belum ada varian untuk produk ini.
-            </p>
-          ) : (
-            <div
-              className="bg-white rounded-xl overflow-hidden"
-              style={{ boxShadow: "0px 4px 12px rgba(0,0,0,0.05)" }}
+        {/* Aksi produk */}
+        <section className="space-y-3" aria-label="Aksi produk">
+          <motion.div whileTap={{ scale: 0.98 }} transition={{ duration: 0.12, ease: easing }}>
+            <Link
+              href={`/produk/${id}/edit`}
+              className="relative flex w-full items-center justify-center gap-2.5 overflow-hidden rounded-2xl bg-gradient-to-r from-brand-600 via-brand-700 to-brand-900 px-5 py-4 text-base font-bold text-white shadow-lift transition-opacity duration-150 ease-out hover:opacity-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700"
             >
-              {/* Table Header */}
-              <div
-                className="grid grid-cols-[1fr_70px_70px_80px] gap-2 px-4 py-3"
-                style={{ backgroundColor: "#F7F9FB" }}
-              >
-                <span
-                  className="text-xs font-semibold uppercase tracking-wider"
-                  style={{ color: "#6E797E" }}
-                >
-                  Varian
-                </span>
-                <span
-                  className="text-xs font-semibold uppercase tracking-wider text-center"
-                  style={{ color: "#6E797E" }}
-                >
-                  Stok
-                </span>
-                <span
-                  className="text-xs font-semibold uppercase tracking-wider text-center"
-                  style={{ color: "#6E797E" }}
-                >
-                  ROP
-                </span>
-                <span
-                  className="text-xs font-semibold uppercase tracking-wider text-center"
-                  style={{ color: "#6E797E" }}
-                >
-                  Status
-                </span>
-              </div>
+              <span aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/20 to-transparent" />
+              <PencilLineIcon className="relative h-5 w-5" strokeWidth={2.2} />
+              <span className="relative">Edit Produk</span>
+            </Link>
+          </motion.div>
 
-              {/* Table Rows */}
-              {produk.varian.map((v, idx) => {
-                const isLow =
-                  v.reorder_point > 0 && v.jumlah_stok <= v.reorder_point;
-
-                return (
-                  <div
-                    key={v.id_varian}
-                    className={`grid grid-cols-[1fr_70px_70px_80px] gap-2 px-4 py-3.5 items-center ${
-                      idx < produk.varian.length - 1
-                        ? "border-b border-[#E0E3E5]"
-                        : ""
-                    }`}
-                    style={{
-                      backgroundColor: isLow
-                        ? "rgba(239, 68, 68, 0.04)"
-                        : "transparent",
-                    }}
-                  >
-                    {/* Variant name & Storage Location */}
-                    <div className="flex flex-col min-w-0">
-                      <span
-                        className="text-sm font-medium truncate"
-                        style={{ color: "#191C1E" }}
-                      >
-                        {v.nama_varian}
-                      </span>
-                      {v.lokasi_penyimpanan && (
-                        <span
-                          className="text-[11px] truncate leading-4 font-normal"
-                          style={{ color: "#6E797E" }}
-                          title={v.lokasi_penyimpanan}
-                        >
-                          Lokasi: {v.lokasi_penyimpanan}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Stock count */}
-                    <div className="flex items-center justify-center gap-1.5">
-                      <div
-                        className="w-2 h-2 rounded-full shrink-0"
-                        style={{
-                          backgroundColor: isLow ? "#EF4444" : "#22C55E",
-                        }}
-                      />
-                      <span
-                        className="text-sm font-semibold tabular-nums"
-                        style={{
-                          color: isLow ? "#DC2626" : "#3E484D",
-                        }}
-                      >
-                        {v.jumlah_stok}
-                      </span>
-                    </div>
-
-                    {/* Reorder point */}
-                    <span
-                      className="text-sm text-center tabular-nums"
-                      style={{ color: "#6E797E" }}
-                    >
-                      {v.reorder_point}
-                    </span>
-
-                    {/* Status badge */}
-                    <div className="flex justify-center">
-                      <span
-                        className="text-[11px] leading-[16px] font-semibold px-2.5 py-1 rounded-full"
-                        style={{
-                          backgroundColor: isLow
-                            ? "rgba(239, 68, 68, 0.1)"
-                            : "rgba(34, 197, 94, 0.1)",
-                          color: isLow ? "#DC2626" : "#16A34A",
-                        }}
-                      >
-                        {isLow ? "Rendah" : "Aman"}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex flex-col gap-3 mt-2">
-          <Link
-            href={`/produk/${id}/edit`}
-            className="flex items-center justify-center gap-2 h-12 rounded-lg text-white font-semibold text-base transition-opacity hover:opacity-90"
-            style={{
-              backgroundColor: "#00647C",
-              boxShadow: "0px 1px 2px rgba(0,0,0,0.05)",
-            }}
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-              <path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z" />
-            </svg>
-            Edit Produk
-          </Link>
-
-          <button
+          <motion.button
             type="button"
+            whileTap={{ scale: 0.98 }}
+            transition={{ duration: 0.12, ease: easing }}
             onClick={handleDelete}
-            className="flex items-center justify-center gap-2 h-12 rounded-lg font-semibold text-base border border-red-200 text-red-600 transition-colors hover:bg-red-50 cursor-pointer"
+            className="flex w-full items-center justify-center gap-2.5 rounded-2xl border border-alert-200 bg-gradient-to-b from-white to-alert-50 px-5 py-4 text-base font-bold text-alert-600 shadow-card transition-colors duration-150 ease-out hover:to-alert-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-alert-600 cursor-pointer"
           >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M3 6h18" />
-              <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-              <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-            </svg>
+            <Trash2Icon className="h-5 w-5" strokeWidth={2.2} />
             Hapus Produk
-          </button>
-        </div>
-      </div>
+          </motion.button>
+        </section>
+      </main>
 
       {/* SR-04: Stock Warning Dialog */}
       <ConfirmDialog
@@ -412,7 +263,7 @@ export default function DetailProdukPage() {
         onClose={() => setShowStockWarning(false)}
         onConfirm={confirmDelete}
         title="Produk Masih Memiliki Stok!"
-        message={`Produk ini masih memiliki ${varianWithStock.length} varian dengan total stok ${totalStok} pcs. Menghapus produk akan menghapus semua data varian dan stoknya secara permanen. Lanjutkan?`}
+        message={`Produk ini masih memiliki ${varianWithStock.length} varian dengan total stok ${totalStock} pcs. Menghapus produk akan menghapus semua data varian dan stoknya secara permanen. Lanjutkan?`}
         confirmLabel="Hapus Tetap"
         cancelLabel="Batal"
         loading={deleting}
