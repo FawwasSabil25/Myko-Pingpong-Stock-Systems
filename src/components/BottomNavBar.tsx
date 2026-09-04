@@ -79,7 +79,7 @@ export default function BottomNavBar() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-[#F1F5F9] flex items-center justify-around px-[30px] py-[9px]"
+      className="fixed bottom-0 left-0 right-0 z-50 bg-[#D6EBF0] border-t border-[#F1F5F9] flex items-center justify-around px-[30px] py-[9px]"
       style={{ boxShadow: "0px -4px 12px rgba(0, 0, 0, 0.05)", height: "66px" }}
     >
       {navItems.map((item) => {
@@ -94,7 +94,7 @@ export default function BottomNavBar() {
             href={item.href}
             className={`flex flex-col items-center justify-center gap-1 px-3 py-1 rounded-[10px] transition-colors duration-200 min-w-[56px] ${
               isActive
-                ? "bg-[rgba(236,254,255,0.5)]"
+                ? "bg-white"
                 : "hover:bg-gray-50"
             }`}
           >

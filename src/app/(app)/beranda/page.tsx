@@ -279,10 +279,10 @@ export default function BerandaPage() {
 
   return (
     <PullToRefresh onRefresh={() => role ? fetchDashboardData(role) : Promise.resolve()}>
-      <div className="flex flex-col min-h-screen bg-white">
+      <div className="flex flex-col min-h-screen bg-[#F4F8F9]">
       {/* TopAppBar - Figma Style */}
       <header
-        className="flex items-center justify-between px-6 bg-white border-b border-[#F1F5F9] shrink-0"
+        className="flex items-center justify-between px-6 bg-[#BFF5FC] border-b border-[#F1F5F9] shrink-0"
         style={{
           height: "64px",
           boxShadow: "0px 1px 2px rgba(0, 0, 0, 0.05)",
@@ -328,7 +328,7 @@ export default function BerandaPage() {
       </header>
 
       {/* Main Content Area */}
-      <div className="flex-1 px-6 py-6 flex flex-col gap-10 max-w-lg mx-auto w-full pb-[100px]">
+      <div className="flex-1 px-6 py-6 flex flex-col gap-6 max-w-lg mx-auto w-full pb-[100px]">
         {error && (
           <div className="flex items-start gap-2 p-4 bg-red-50 border border-red-200 rounded-lg">
             <p className="text-sm text-red-700">{error}</p>
@@ -342,7 +342,7 @@ export default function BerandaPage() {
           </div>
         ) : role === "pemilik" ? (
           /* ================= OWNER DASHBOARD VIEW ================= */
-          <div className="flex flex-col gap-10">
+          <div className="flex flex-col gap-6">
             {/* Section - Welcome & High-level Stats */}
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-1">
@@ -358,7 +358,7 @@ export default function BerandaPage() {
               </div>
 
               {/* Stats highlights (2 column grid) */}
-              <div className="grid grid-cols-2 gap-4 pt-2">
+              <div className="grid grid-cols-2 gap-3 pt-2">
                 {/* Stok Menipis Card */}
                 <Link
                   href="/produk"
@@ -386,10 +386,10 @@ export default function BerandaPage() {
                 {/* Pesanan Aktif Card */}
                 <Link
                   href="/pemilik/pesanan"
-                  className="p-4 rounded-xl border bg-white flex flex-col justify-between transition-shadow hover:shadow-md"
+                  className="p-4 rounded-xl border bg-[#E0F7FA] flex flex-col justify-between transition-shadow hover:shadow-md"
                   style={{
                     height: "90px",
-                    borderColor: "rgba(189, 200, 206, 0.3)",
+                    borderColor: "rgba(0, 100, 124, 0.2)",
                   }}
                 >
                   <span

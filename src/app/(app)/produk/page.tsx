@@ -86,7 +86,7 @@ export default function ProdukPage() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-white">
+    <div className="flex flex-col min-h-screen bg-[#F4F8F9]">
       {/* Main Canvas */}
       <div className="flex flex-col gap-6 p-6">
         {/* Page Header & Actions */}
@@ -105,13 +105,12 @@ export default function ProdukPage() {
 
           <Link
             href="/produk/tambah"
-            className="inline-flex items-center gap-2 h-11 px-6 text-sm font-semibold text-white rounded-lg self-start transition-opacity hover:opacity-90"
+            className="w-full flex items-center justify-center gap-2 h-12 text-sm font-semibold text-white rounded-xl transition-opacity hover:opacity-90"
             style={{
               backgroundColor: "#00647C",
               boxShadow: "0px 1px 2px rgba(0,0,0,0.05)",
             }}
           >
-            Tambah Produk Baru
             <svg
               width="14"
               height="14"
@@ -125,17 +124,18 @@ export default function ProdukPage() {
               <path d="M5 12h14" />
               <path d="M12 5v14" />
             </svg>
+            Tambah Produk Baru
           </Link>
         </div>
 
         {/* Filters & Search */}
         <div
-          className="flex flex-col gap-4 p-4 bg-white rounded-xl"
+          className="flex flex-col gap-4 p-4 bg-[#007F9D]/20 rounded-xl"
           style={{ boxShadow: "0px 4px 12px rgba(0,0,0,0.05)" }}
         >
           {/* Search input */}
           <div
-            className="flex items-center h-[49px] bg-[#F7F9FB] border border-[#BDC8CE] rounded-lg px-3 gap-2"
+            className="flex items-center h-[49px] bg-white border border-[#BDC8CE] rounded-lg px-3 gap-2"
           >
             <svg
               width="18"
@@ -188,8 +188,8 @@ export default function ProdukPage() {
                 onClick={() => setActiveKategori(null)}
                 className={`h-[38px] px-4 rounded-full text-sm font-semibold transition-colors cursor-pointer ${
                   activeKategori === null
-                    ? "bg-[#DAE2FD] text-[#5C647A]"
-                    : "bg-[#F7F9FB] border border-[#BDC8CE] text-[#191C1E]"
+                    ? "bg-[#00647C] text-white border border-[#00647C]"
+                    : "bg-white border border-[#BDC8CE] text-[#191C1E]"
                 }`}
               >
                 Semua Kategori
@@ -203,8 +203,8 @@ export default function ProdukPage() {
                   }
                   className={`h-[38px] px-4 rounded-full text-sm font-semibold transition-colors cursor-pointer ${
                     activeKategori === cat
-                      ? "bg-[#DAE2FD] text-[#5C647A]"
-                      : "bg-[#F7F9FB] border border-[#BDC8CE] text-[#191C1E]"
+                      ? "bg-[#00647C] text-white border border-[#00647C]"
+                      : "bg-white border border-[#BDC8CE] text-[#191C1E]"
                   }`}
                 >
                   {cat}
@@ -357,16 +357,17 @@ export default function ProdukPage() {
                     </div>
                   </div>
 
-                  {/* Bottom row: stock info with SR-06 low stock indicator */}
+                  {/* Bottom row: stock info + badge */}
                   <div
                     className="flex items-center justify-between pt-3 border-t w-full"
                     style={{
                       borderColor: isLow ? "rgba(186, 26, 26, 0.2)" : "#E0E3E5",
                     }}
                   >
-                    <div className="flex items-center gap-2">
+                    {/* Stock indicator */}
+                    <div className="flex items-center gap-2.5">
                       <div
-                        className="w-2 h-2 rounded-full"
+                        className="w-[20px] h-[20px] rounded-full shrink-0"
                         style={{
                           backgroundColor: isLow
                             ? "#EF4444"
@@ -376,7 +377,7 @@ export default function ProdukPage() {
                         }}
                       />
                       <span
-                        className="text-sm font-semibold"
+                        className="text-[20px] font-semibold leading-[28px]"
                         style={{
                           color: isLow ? "#BA1A1A" : "#3E484D",
                         }}
