@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   ChevronDownIcon,
@@ -51,7 +51,6 @@ export default function InputPesananBaruPage() {
   const [namaPelanggan, setNamaPelanggan] = useState("");
   const [metodePengiriman, setMetodePengiriman] = useState("");
   const [catatan, setCatatan] = useState("");
-  const [resiFile, setResiFile] = useState<File | null>(null);
   const [resiUrl, setResiUrl] = useState<string | null>(null);
   const [uploadingResi, setUploadingResi] = useState(false);
 
@@ -65,12 +64,7 @@ export default function InputPesananBaruPage() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    fetchProduk();
-  }, []);
-
-  async function fetchProduk() {
-    setLoadingProduk(true);
+  const fetchProduk = useCallback(async () => {
     const { data, error } = await supabase
       .from("produk")
       .select("id_produk, nama_produk, harga, varian(id_varian, nama_varian, jumlah_stok, reorder_point)")
@@ -79,15 +73,19 @@ export default function InputPesananBaruPage() {
     if (error) {
       console.error("Error fetching produk:", error);
     } else {
-      setProdukList((data as any[]) || []);
+      setProdukList((data as Array<ProdukItem>) || []);
     }
     setLoadingProduk(false);
-  }
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchProduk();
+  }, [fetchProduk]);
 
   async function handleResiUpload(e: React.ChangeEvent<HTMLInputElement>) {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      setResiFile(file);
       setUploadingResi(true);
 
       try {
@@ -106,9 +104,9 @@ export default function InputPesananBaruPage() {
 
         const data = await res.json();
         setResiUrl(data.publicUrl);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Error uploading resi PDF:", err);
-        setErrors({ ...errors, resi: err.message || "Gagal mengunggah file resi." });
+        setErrors({ ...errors, resi: err instanceof Error ? err.message : "Gagal mengunggah file resi." });
       } finally {
         setUploadingResi(false);
       }
@@ -202,11 +200,11 @@ export default function InputPesananBaruPage() {
       setSubmitting(false);
       setShowConfirm(false);
       setShowSuccess(true);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error submitting order:", err);
       setSubmitting(false);
       setShowConfirm(false);
-      setErrors({ submit: err.message || "Gagal memproses data pesanan." });
+      setErrors({ submit: err instanceof Error ? err.message : "Gagal memproses data pesanan." });
     }
   }
 
@@ -472,7 +470,6 @@ export default function InputPesananBaruPage() {
                     <button
                       type="button"
                       onClick={() => {
-                        setResiFile(null);
                         setResiUrl(null);
                       }}
                       className="text-xs font-bold text-alert-600 hover:underline mt-1"

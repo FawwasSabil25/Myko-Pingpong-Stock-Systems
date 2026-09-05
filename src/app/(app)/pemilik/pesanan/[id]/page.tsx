@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
+import { useEffect, useState, use, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   ChevronDownIcon,
@@ -8,7 +8,6 @@ import {
   MinusIcon,
   PlusIcon,
   Trash2Icon,
-  MessageCircleIcon,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { getRole } from "@/lib/role";
@@ -54,7 +53,6 @@ export default function DetailPesananPemilikPage({
   const [products, setProducts] = useState<Produk[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   // Form states
   const [platform, setPlatform] = useState("");
@@ -64,7 +62,6 @@ export default function DetailPesananPemilikPage({
   const [metodePengiriman, setMetodePengiriman] = useState("");
   const [catatan, setCatatan] = useState("");
   const [currentResiUrl, setCurrentResiUrl] = useState<string | null>(null);
-  const [resiFile, setResiFile] = useState<File | null>(null);
   const [uploadingResi, setUploadingResi] = useState(false);
 
   // Order status for locking
@@ -81,26 +78,14 @@ export default function DetailPesananPemilikPage({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showDeleteSuccess, setShowDeleteSuccess] = useState(false);
 
-  useEffect(() => {
-    const role = getRole();
-    if (role !== "pemilik") {
-      router.replace("/beranda");
-      return;
-    }
-    initData();
-  }, [router, id]);
-
-  async function initData() {
+const initData = useCallback(async () => {
     try {
-      setLoading(true);
-      setError(null);
-
       const { data: prodData, error: prodErr } = await supabase
         .from("produk")
         .select("id_produk, nama_produk, varian(id_varian, nama_varian, jumlah_stok)");
 
       if (prodErr) throw prodErr;
-      setProducts((prodData as any[]) || []);
+      setProducts((prodData as Array<Produk>) || []);
 
       const res = await fetch(`/api/pesanan/${id}`);
       if (!res.ok) {
@@ -116,20 +101,33 @@ export default function DetailPesananPemilikPage({
       setCatatan(order.catatan || "");
       setCurrentResiUrl(order.resi_url || null);
 
-      const mappedItems = order.detail_pesanan.map((d: any) => ({
+      const mappedItems = order.detail_pesanan.map((d: {
+        varian: { produk: { id_produk: string } };
+        id_varian: string;
+        jumlah: number;
+      }) => ({
         id_produk: d.varian.produk.id_produk,
         id_varian: d.id_varian,
         jumlah: d.jumlah,
       }));
       setItems(mappedItems);
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error loading order page data:", err);
-      setError(err.message || "Gagal mengambil data pendukung.");
     } finally {
       setLoading(false);
     }
-  }
+  }, [id]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    const role = getRole();
+    if (role !== "pemilik") {
+      router.replace("/beranda");
+      return;
+    }
+    initData();
+  }, [router, id, initData]);
 
   function handleAddItem() {
     setItems([...items, { id_produk: "", id_varian: "", jumlah: 1 }]);
@@ -153,7 +151,6 @@ export default function DetailPesananPemilikPage({
   async function handleResiUpload(e: React.ChangeEvent<HTMLInputElement>) {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      setResiFile(file);
       setUploadingResi(true);
 
       try {
@@ -172,9 +169,9 @@ export default function DetailPesananPemilikPage({
 
         const data = await res.json();
         setCurrentResiUrl(data.publicUrl);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Error uploading resi:", err);
-        setErrors({ ...errors, resi: err.message || "Gagal mengunggah file resi." });
+        setErrors({ ...errors, resi: err instanceof Error ? err.message : "Gagal mengunggah file resi." });
       } finally {
         setUploadingResi(false);
       }
@@ -236,11 +233,11 @@ export default function DetailPesananPemilikPage({
       setSaving(false);
       setShowConfirm(false);
       setShowSuccess(true);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error updating order:", err);
       setSaving(false);
       setShowConfirm(false);
-      setErrors({ submit: err.message || "Terjadi kesalahan saat menyimpan." });
+      setErrors({ submit: err instanceof Error ? err.message : "Terjadi kesalahan saat menyimpan." });
     }
   }
 
@@ -255,11 +252,11 @@ export default function DetailPesananPemilikPage({
       setDeleting(false);
       setShowDeleteConfirm(false);
       setShowDeleteSuccess(true);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error deleting order:", err);
       setDeleting(false);
       setShowDeleteConfirm(false);
-      setErrors({ submit: err.message || "Terjadi kesalahan saat menghapus." });
+      setErrors({ submit: err instanceof Error ? err.message : "Terjadi kesalahan saat menghapus." });
     }
   }
 

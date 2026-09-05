@@ -55,13 +55,9 @@ export default function DetailPesananPengelolaPage({
   const [confirming, setConfirming] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const fetchOrder = useCallback(async () => {
     try {
-      setLoading(true);
-      setError(null);
-
       const res = await fetch(`/api/pesanan/${id}`);
       if (!res.ok) {
         throw new Error("Gagal mengambil data pesanan.");
@@ -71,13 +67,13 @@ export default function DetailPesananPengelolaPage({
       setOrder(data);
     } catch (err: unknown) {
       console.error("Error fetching order:", err);
-      setError(err instanceof Error ? err.message : "Terjadi kesalahan saat memuat data.");
     } finally {
       setLoading(false);
     }
   }, [id]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchOrder();
   }, [fetchOrder]);
 
@@ -114,12 +110,12 @@ export default function DetailPesananPengelolaPage({
     );
   }
 
-  if (error || !order) {
+  if (!order) {
     return (
       <MobileShell header={<DetailHeader title="Proses Pesanan" backTo="/pesanan" />}>
         <main className="px-5 py-10 text-center max-w-md mx-auto">
           <div className="rounded-3xl border border-white/70 bg-gradient-to-b from-white to-brand-50 p-8 text-center shadow-card space-y-3">
-            <p className="text-base font-extrabold text-brand-900">{error || "Pesanan tidak ditemukan."}</p>
+            <p className="text-base font-extrabold text-brand-900">Pesanan tidak ditemukan.</p>
             <button
               onClick={fetchOrder}
               className="rounded-2xl bg-gradient-to-r from-brand-600 to-brand-900 px-5 py-3 text-xs font-bold text-white shadow-lift"

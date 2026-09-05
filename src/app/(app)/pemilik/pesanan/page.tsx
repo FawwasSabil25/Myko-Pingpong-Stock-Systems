@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ClockIcon, PlusIcon, TruckIcon } from "lucide-react";
+import { PlusIcon, TruckIcon } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { AppHeader } from "@/components/AppHeader";
 import { OrderCard, type OrderItem } from "@/components/OrderCard";
@@ -37,12 +37,7 @@ export default function DaftarPesananPemilikPage() {
   const [orders, setOrders] = useState<OrderData[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchOrders();
-  }, []);
-
-  async function fetchOrders() {
-    setLoading(true);
+  const fetchOrders = useCallback(async () => {
     const { data, error } = await supabase
       .from("pesanan")
       .select(`
@@ -70,15 +65,19 @@ export default function DaftarPesananPemilikPage() {
     if (error) {
       console.error("Error fetching orders:", error);
     } else {
-      setOrders((data as any[]) || []);
+      setOrders((data as unknown as Array<OrderData>) || []);
     }
     setLoading(false);
-  }
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchOrders();
+  }, [fetchOrders]);
 
   const activeOrders = orders.filter((o) => o.status === "baru");
-  const shippedOrders = orders.filter((o) => o.status === "dikirim" || o.status === "selesai");
 
-  const formattedOrders: OrderItem[] = orders.map((o) => {
+  const formattedOrders: OrderItem[] = activeOrders.map((o) => {
     const totalPrice = o.detail_pesanan.reduce((sum, d) => {
       const price = d.varian?.produk?.harga || 0;
       return sum + price * d.jumlah;

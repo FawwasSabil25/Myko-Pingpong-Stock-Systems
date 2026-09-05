@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { ClockIcon, TruckIcon } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -34,12 +34,7 @@ export default function DaftarPesananPengelolaPage() {
   const [orders, setOrders] = useState<OrderData[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchOrders();
-  }, []);
-
-  async function fetchOrders() {
-    setLoading(true);
+  const fetchOrders = useCallback(async () => {
     const { data, error } = await supabase
       .from("pesanan")
       .select(`
@@ -67,15 +62,19 @@ export default function DaftarPesananPengelolaPage() {
     if (error) {
       console.error("Error fetching orders:", error);
     } else {
-      setOrders((data as any[]) || []);
+      setOrders((data as unknown as Array<OrderData>) || []);
     }
     setLoading(false);
-  }
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchOrders();
+  }, [fetchOrders]);
 
   const activeOrders = orders.filter((o) => o.status === "baru");
-  const shippedOrders = orders.filter((o) => o.status === "dikirim" || o.status === "selesai");
 
-  const formattedOrders: OrderItem[] = orders.map((o) => {
+  const formattedOrders: OrderItem[] = activeOrders.map((o) => {
     const totalPrice = o.detail_pesanan.reduce((sum, d) => {
       const price = d.varian?.produk?.harga || 0;
       return sum + price * d.jumlah;
@@ -142,22 +141,13 @@ export default function DaftarPesananPengelolaPage() {
             <p className="mt-1 text-5xl font-extrabold leading-none tracking-tight">
               {activeOrders.length}
             </p>
-            <dl className="mt-5 grid grid-cols-2 gap-2">
-              <div className="rounded-2xl bg-white/10 px-3 py-2.5">
-                <dt className="flex items-center gap-1.5 text-[11px] font-semibold text-brand-200">
-                  <ClockIcon className="h-3.5 w-3.5" aria-hidden="true" />
-                  Menunggu
-                </dt>
-                <dd className="mt-0.5 text-lg font-extrabold">{activeOrders.length}</dd>
-              </div>
-              <div className="rounded-2xl bg-white/10 px-3 py-2.5">
-                <dt className="flex items-center gap-1.5 text-[11px] font-semibold text-brand-200">
-                  <TruckIcon className="h-3.5 w-3.5" aria-hidden="true" />
-                  Dikirim
-                </dt>
-                <dd className="mt-0.5 text-lg font-extrabold">{shippedOrders.length}</dd>
-              </div>
-            </dl>
+            <div className="mt-5 rounded-2xl bg-white/10 px-3 py-2.5">
+              <dt className="flex items-center gap-1.5 text-[11px] font-semibold text-brand-200">
+                <ClockIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                Menunggu
+              </dt>
+              <dd className="mt-0.5 text-lg font-extrabold">{activeOrders.length}</dd>
+            </div>
           </div>
         </motion.section>
 
