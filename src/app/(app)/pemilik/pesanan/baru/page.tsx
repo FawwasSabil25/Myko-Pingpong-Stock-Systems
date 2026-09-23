@@ -183,7 +183,7 @@ export default function InputPesananBaruPage() {
           id_varian: i.id_varian,
           jumlah: i.jumlah,
         })),
-        kirim_wa: sendWA,
+        kirim_notifikasi: sendWA,
       };
 
       const res = await fetch("/api/pesanan", {
