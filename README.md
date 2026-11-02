@@ -1,36 +1,70 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Myko Pingpong Stock Systems
 
-## Getting Started
+A web app for tracking stock and orders in one place, built for sellers on multiple platforms (Shopee, Tokopedia, TikTok Shop). Built as my undergraduate thesis at Universitas Pasundan.
 
-First, run the development server:
+**Live demo:** https://mykopingpongstocksystems.vercel.app [VERIFY it loads]
+
+## Features
+
+**Owner**
+- Dashboard with stock, order, and sales summaries
+- Manage products and variants (photos, search, filters, low-stock indicators)
+- Enter, edit, and delete orders, tagged by platform
+- Revenue summary, weekly and monthly sales, and product breakdown
+- Stock movement history with period filter and pagination
+
+**Manager**
+- See active orders
+- Process orders and confirm shipment with a receipt photo
+
+**Notifications**
+- WhatsApp messages (via Fonnte) for new orders, low stock, and shipments
+
+## Tech stack
+
+- Next.js (App Router), React, TypeScript
+- Tailwind CSS, Framer Motion
+- Supabase (PostgreSQL and Storage)
+- Fonnte WhatsApp API
+
+## Getting started
+
+Requirements: Node.js, a Supabase project, and a Fonnte account (only needed for WhatsApp notifications).
+
+```bash
+git clone https://github.com/FawwasSabil25/Myko-Pingpong-Stock-Systems.git
+cd Myko-Pingpong-Stock-Systems
+npm install
+```
+
+Create a `.env.local` file in the project root:
+
+```
+NEXT_PUBLIC_SUPABASE_URL=your-supabase-url      # [VERIFY variable names]
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key     # [VERIFY variable names]
+FONNTE_TOKEN=your-fonnte-token                  # [VERIFY variable names]
+```
+
+Set up the database with the SQL files in the `supabase/` folder [VERIFY: schema is up to date], then run:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Project status
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+This is a thesis prototype, not a production system. Known limitations:
 
-## Learn More
+- No login. The role (owner or manager) is chosen on first setup and stored in the browser.
+- Orders are entered manually with a platform label. There is no marketplace API sync.
+- [Remove any item here once you fix it, e.g. placeholder dashboard figures]
 
-To learn more about Next.js, take a look at the following resources:
+## Thesis context
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+The system was analyzed and designed with the Work System Framework, modeled in UML, and evaluated with usability testing.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Author
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Fawwas Nawwaf Sabil: [GitHub](https://github.com/FawwasSabil25)
