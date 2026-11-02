@@ -2,7 +2,7 @@
 
 A web app for tracking stock and orders in one place, built for sellers on multiple platforms (Shopee, Tokopedia, TikTok Shop). Built as my undergraduate thesis at Universitas Pasundan.
 
-**Live demo:** https://mykopingpongstocksystems.vercel.app [VERIFY it loads]
+**Live demo:** https://mykopingpongstocksystems.vercel.app
 
 ## Features
 
@@ -45,7 +45,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key     # [VERIFY variable names]
 FONNTE_TOKEN=your-fonnte-token                  # [VERIFY variable names]
 ```
 
-Set up the database with the SQL files in the `supabase/` folder [VERIFY: schema is up to date], then run:
+Set up the database with the SQL files in the `supabase/` folder, then run:
 
 ```bash
 npm run dev
@@ -59,7 +59,6 @@ This is a thesis prototype, not a production system. Known limitations:
 
 - No login. The role (owner or manager) is chosen on first setup and stored in the browser.
 - Orders are entered manually with a platform label. There is no marketplace API sync.
-- [Remove any item here once you fix it, e.g. placeholder dashboard figures]
 
 ## Thesis context
 
