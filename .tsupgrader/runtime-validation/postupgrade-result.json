@@ -1,0 +1,114 @@
+{
+  "planHash": "642826a2f67274050d1797823db2915f4c807563fdcd77ec3a129a6625332a1c",
+  "phase": "postupgrade",
+  "recordedAtUtc": "2026-11-02T04:51:16.9855808Z",
+  "retryCount": 0,
+  "resetBaseline": false,
+  "complete": true,
+  "result": {
+    "setupSucceeded": true,
+    "setupDurationMs": 56471,
+    "setupFailureOutput": null,
+    "assertions": [
+      {
+        "name": "production-build",
+        "kind": "process",
+        "verificationMethod": "exit-code",
+        "passed": true,
+        "timedOut": false,
+        "skipped": false,
+        "skippedReason": null,
+        "exitCode": 0,
+        "outputSample": "\r\n\u003E myko-pingpong-app@0.1.0 build\r\n\u003E next build\r\n\r\n\u25B2 Next.js 16.4.3 (Turbopack)\r\n- Environments: .env.local\r\n\u2713 Running next.config.ts took 39ms\r\n\r\n  Creating an optimized production build ...\r\n\u2713 Compiled successfully in 4.3s\r\n  Running TypeScript ...\r\n  Finished TypeScript in 4.3s ...\r\n  Collecting page data using 11 workers ...\r\n  Generating static pages using 11 workers (0/20) ...\r\n  Generating static pages using 11 workers (5/20) \r\n  Generating static pages using 11 workers (10/20) \r\n  Generating static pages using 11 workers (15/20) \r\n\u2713 Generating static pages using 11 workers (20/20) in 418ms\r\n  Finalizing page optimization ...\r\n\r\nRoute (app)\r\n\u250C \u25CB /\r\n\u251C \u25CB /_not-found\r\n\u251C \u0192 /api/pengiriman/[id]/konfirmasi\r\n\u251C \u0192 /api/pesanan\r\n\u251C \u0192 /api/pesanan/[id]\r\n\u251C \u0192 /api/pesanan/upload-resi\r\n\u251C \u0192 /api/produk/[id]\r\n\u251C \u0192 /api/produk/upload-foto\r\n\u251C \u0192 /api/rekap/penjualan\r\n\u251C \u0192 /api/rekap/riwayat\r\n\u251C \u25CB /beranda\r\n\u251C \u25CB /pemilik/pesanan\r\n\u251C \u0192 /pemilik/pesanan/[id]\r\n\u251C \u25CB /pemilik/pesanan/baru\r\n\u251C \u25CB /pemilik/rekap\r\n\u251C \u25CB /pemilik/rekap/penjualan\r\n\u251C \u25CB /pemilik/rekap/riwayat\r\n\u251C \u0192 /pengelola/pesanan/[id]\r\n\u251C \u25CB /pesanan\r\n\u251C \u25CB /produk\r\n\u251C \u0192 /produk/[id]\r\n\u251C \u0192 /produk/[id]/edit\r\n\u251C \u25CB /produk/tambah\r\n\u251C \u25CB /rekap\r\n\u2514 \u25CB /setup\r\n\r\n\r\n\u25CB  (Static)   prerendered as static content\r\n\u0192  (Dynamic)  server-rendered on demand\r\n\r\n",
+        "durationMs": 12476
+      },
+      {
+        "name": "home-route-200",
+        "kind": "http-probe",
+        "verificationMethod": "http-status",
+        "passed": true,
+        "timedOut": false,
+        "skipped": false,
+        "skippedReason": null,
+        "exitCode": null,
+        "outputSample": "HTTP 200\n\u003C!DOCTYPE html\u003E\u003Chtml lang=\u0022id\u0022 class=\u0022inter_fe8b9d92-module__LINzvG__variable h-full antialiased\u0022\u003E\u003Chead\u003E\u003Cmeta charSet=\u0022utf-8\u0022/\u003E\u003Cmeta name=\u0022viewport\u0022 content=\u0022width=device-width, initial-scale=1, maximum-scale=1\u0022/\u003E\u003Clink rel=\u0022stylesheet\u0022 href=\u0022/_next/static/chunks/%5Broot-of-the-server%5D__0_zbhsouf66ml._.css\u0022 data-precedence=\u0022next_static/chunks/[root-of-the-server]__0_zbhsouf66ml._.css\u0022/\u003E\u003Clink rel=\u0022preload\u0022 as=\u0022script\u0022 fetchPriority=\u0022low\u0022 href=\u0022/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_0qva5cupmdgep._.js\u0022/\u003E\u003Cscript src=\u0022/_next/static/chunks/1daa_next_dist_compiled_react-dom_cjs_react-dom-client_development_0mp0cp_t-ezj9.js\u0022 async=\u0022\u0022\u003E\u003C/script\u003E\u003Cscript src=\u0022/_next/static/chunks/1q96_modules_next_dist_compiled_react-dom_cjs_react-dom_development_1sqry0_53krp4.js\u0022 async=\u0022\u0022\u003E\u003C/script\u003E\u003Cscript src=\u0022/_next/static/chunks/node_modules_next_dist_compiled_react-dom_0grqycjrj6mju._.js\u0022 async=\u0022\u0022\u003E\u003C/script\u003E\u003Cscript src=\u0022/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_164kp-67asdr9._.js\u0022 async=\u0022\u0022\u003E\u003C/script\u003E\u003Cscript src=\u0022/_next/static/chunks/node_modules_next_dist_compiled_next-devtools_index_090k2jmam7qwg.js\u0022 async=\u0022\u0022\u003E\u003C/script\u003E\u003Cscript src=\u0022/_next/static/chunks/node_modules_next_dist_compiled_1amofcmz--cdp._.js\u0022 async=\u0022\u0022\u003E\u003C/script\u003E\u003Cscript src=\u0022/_next/static/chunks/node_modules_next_dist_client_1wygxxh5rwq0t._.js\u0022 async=\u0022\u0022\u003E\u003C/script\u003E\u003Cscript src=\u0022/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js\u0022 async=\u0022\u0022\u003E\u003C/script\u003E\u003Cscript src=\u0022/_next/static/chunks/node_modules_%40swc_helpers_cjs_1r9vbqwj2323d._.js\u0022 async=\u0022\u0022\u003E\u003C/script\u003E\u003Cscript src=\u0022/_next/static/chunks/_1anvha4rlo79g._.js\u0022 async=\u0022\u0022\u003E\u003C/script\u003E\u003Cscript src=\u0022/_next/static/chunks/turbopack-_06rkbud3pyrlm._.js\u0022 async=\u0022\u0022\u003E\u003C/script\u003E\u003Cscript src=\u0022/_next/static/chunks/_219uq1sj0q91c._.js\u0022 async=\u0022\u0022\u003E\u003C/script\u003E\u003Cscript src=\u0022/_next/static/chunks/_07sjwrtka06ox._.js\u0022 async=\u0022\u0022\u003E\u003C/script\u003E\u003Cscript src=\u0022/_next/static/chunks/_0h86mlbqs7m7k._.js\u0022 async=\u0022\u0022\u003E\u003C/script\u003E\u003Cmeta name=\u0022theme-color\u0022 content=\u0022#00647C\u0022/\u003E\u003Ctitle\u003EMyko Pingpong \u2014 Manajemen Stok\u003C/title\u003E\u003Cmeta name=\u0022description\u0022 content=\u0022Sistem Informasi Manajemen Stok Terpusat untuk UMKM Myko Pingpong\u0022/\u003E\u003Clink rel=\u0022manifest\u0022 href=\u0022/manifest.json\u0022/\u003E\u003Cmeta name=\u0022mobile-web-app-capable\u0022 content=\u0022yes\u0022/\u003E\u003Cmeta name=\u0022apple-mobile-web-app-title\u0022 content=\u0022Myko Pingpong\u0022/\u003E\u003Cmeta name=\u0022apple-mobile-web-app-status-bar-style\u0022 content=\u0022default\u0022/\u003E\u003Clink rel=\u0022icon\u0022 href=\u0022/favicon.ico?favicon.2vob68tjqpejf.ico\u0022 sizes=\u0022256x256\u0022 type=\u0022image/x-icon\u0022/\u003E\u003Cmeta name=\u0022next-size-adjust\u0022 content=\u0022\u0022/\u003E\u003Cscript src=\u0022/_next/static/chunks/node_modules_next_dist_build_polyfills_polyfill-nomodule.js\u0022 noModule=\u0022\u0022\u003E\u003C/script\u003E\u003C/head\u003E\u003Cbody class=\u0022min-h-full flex flex-col font-sans\u0022\u003E\u003Cdiv hidden=\u0022\u0022\u003E\u003C!--$--\u003E\u003C!--/$--\u003E\u003C/div\u003E\u003Cdiv class=\u0022flex flex-1 items-center justify-center min-h-screen bg-white\u0022\u003E\u003Cdiv class=\u0022w-8 h-8 border-3 border-primary/30 border-t-primary rounded-full animate-spin\u0022\u003E\u003C/div\u003E\u003C/div\u003E\u003C!--$--\u003E\u003C!--/$--\u003E\u003Cscript id=\u0022_R_\u0022\u003Eself.__next_r=\u0022mYApr4ASZsxcIbBqYSi2q\u0022\u003C/script\u003E\u003Cscript src=\u0022/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_0qva5cupmdgep._.js\u0022 async=\u0022\u0022\u003E\u003C/script\u003E\u003Cscript\u003E(self.__next_f=self.__next_f||[]).push([0])\u003C/script\u003E\u003Cscript\u003Eself.__next_f.push([1,\u00228:\\\u0022[project]/node_modules/next/dist/next-devtools/userspace/app/segment-explorer-node.js [app-client] (ecmascript)\\\u0022\\n9:\\\u0022/_next/static/chunks/_07sjwrtka06ox._.js\\\u0022\\na:I[\\\u0022$8\\\u0022,[\\\u0022$9\\\u0022],\\\u0022SegmentViewNode\\\u0022]\\nc:\\\u0022$Sreact.fragment\\\u0022\\n1e:\\\u0022[project]/src/components/RegisterSW.tsx [app-client] (ecmascript)\\\u0022\\n1f:I[\\\u0022$1e\\\u0022,[\\\u0022$9\\\u0022],\\\u0022default\\\u0022]\\n21:\\\u0022[project]/node_modules/next/dist/client/components/layout-router.js [app-client] (ecmascript)\\\u0022\\n22:I[\\\u0022$21\\\u0022,[\\\u0022$9\\\u0022],\\\u0022default\\\u0022]\\n24:\\\u0022[project]/node_modules/next/dist/client/components/render-from-template-context.js [app-client] (ecmascript)\\\u0022\\n25:I[\\\u0022$24\\\u0022,[\\\u0022$9\\\u0022],\\\u0022default\\\u0022]\\n3a:\\\u0022[project]/node_modules/next/dist/client/components/client-page.js [app-client] (ecmascript)\\\u0022\\n3b:I[\\\u0022$3a\\\u0022,[\\\u0022$9\\\u0022],\\\u0022ClientPageRoot\\\u0022]\\n3c:\\\u0022[project]/src/app/page.tsx [app-client] (ecmascript)\\\u0022\\n3d:\\\u0022/_next/static/chunks/_0h86mlbqs7\n\u2026[truncated]",
+        "durationMs": 3974
+      },
+      {
+        "name": "tests-pass",
+        "kind": "process",
+        "verificationMethod": "test-results",
+        "passed": true,
+        "timedOut": false,
+        "skipped": false,
+        "skippedReason": null,
+        "exitCode": 0,
+        "outputSample": "\r\n\u003E myko-pingpong-app@0.1.0 test\r\n\u003E vitest run\r\n\r\n\r\n RUN  v5.0.5 C:/Users/fawwa/Documents/Kulyeah/Tugas Akhir/Dokumen/Myko Pingpong Stock Systems/myko-pingpong-app\r\n\r\n\r\n Test Files  2 passed (2)\r\n      Tests  3 passed (3)\r\n   Start at  11:51:15\r\n   Duration  1.08s (import 75%, tests 14%, transform 9%, worker 2%)\r\n\r\n",
+        "durationMs": 2033,
+        "testResults": {
+          "testFramework": "vitest",
+          "runnerDetectedFrom": "package_json",
+          "testsTotal": 3,
+          "testsPassed": 3,
+          "testsFailed": 0,
+          "testsSkipped": 0,
+          "parseFailed": false
+        }
+      }
+    ],
+    "executions": [
+      {
+        "source": "setup[0]",
+        "resolvedExecutable": "C:\\Program Files\\nodejs\\npm.CMD",
+        "args": [
+          "ci",
+          "--include=dev"
+        ],
+        "cwd": "C:\\Users\\fawwa\\Documents\\Kulyeah\\Tugas Akhir\\Dokumen\\Myko Pingpong Stock Systems\\myko-pingpong-app",
+        "env": {},
+        "prependPath": [],
+        "platform": "win32"
+      },
+      {
+        "source": "production-build",
+        "resolvedExecutable": "C:\\Program Files\\nodejs\\npm.CMD",
+        "args": [
+          "run",
+          "build"
+        ],
+        "cwd": "C:\\Users\\fawwa\\Documents\\Kulyeah\\Tugas Akhir\\Dokumen\\Myko Pingpong Stock Systems\\myko-pingpong-app",
+        "env": {},
+        "prependPath": [],
+        "platform": "win32"
+      },
+      {
+        "source": "home-route-200",
+        "resolvedExecutable": "C:\\Program Files\\nodejs\\npm.CMD",
+        "args": [
+          "run",
+          "dev",
+          "--",
+          "--hostname",
+          "127.0.0.1",
+          "--port",
+          "3000"
+        ],
+        "cwd": "C:\\Users\\fawwa\\Documents\\Kulyeah\\Tugas Akhir\\Dokumen\\Myko Pingpong Stock Systems\\myko-pingpong-app",
+        "env": {},
+        "prependPath": [],
+        "platform": "win32"
+      },
+      {
+        "source": "tests-pass",
+        "resolvedExecutable": "C:\\Program Files\\nodejs\\npm.CMD",
+        "args": [
+          "test"
+        ],
+        "cwd": "C:\\Users\\fawwa\\Documents\\Kulyeah\\Tugas Akhir\\Dokumen\\Myko Pingpong Stock Systems\\myko-pingpong-app",
+        "env": {},
+        "prependPath": [],
+        "platform": "win32"
+      }
+    ]
+  }
+}
