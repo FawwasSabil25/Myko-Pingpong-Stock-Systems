@@ -230,7 +230,7 @@ export default function BerandaPage() {
               <section>
                 <p className="text-sm font-semibold text-brand-600">Selamat datang kembali</p>
                 <h1 className="mt-0.5 text-3xl font-extrabold tracking-tight text-brand-900">
-                  Halo, Wylyem
+                  Halo, User
                 </h1>
                 <p className="mt-1 text-sm text-slate-600">Berikut ringkasan performa hari ini.</p>
               </section>
@@ -297,7 +297,7 @@ export default function BerandaPage() {
                   Pesanan Hari Ini
                 </h1>
                 <p className="mt-1 text-sm text-slate-600">
-                  Halo Erwina, berikut daftar pesanan yang perlu diproses.
+                  Halo User, berikut daftar pesanan yang perlu diproses.
                 </p>
               </section>
 
